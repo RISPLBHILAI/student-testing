@@ -1,0 +1,145 @@
+const db = require("../../../../shared/db/mysql");
+const logger = require("../../../../shared/utils/logger");
+const { sendSuccess, sendError } = require("../../../../shared/utils/response");
+
+async function getAllNotification(req, res) {
+    try {
+        const studentId = req.user.user_id;
+
+        if (!studentId) {
+            return sendError(res, "Student ID not found in session", 401);
+        }
+
+        const [notifications] = await db.query(
+            `SELECT *
+              FROM notification_portal.notifications
+              WHERE platform = 'STUD' 
+              AND user_type = 'student'
+              AND user_id = ? 
+              ORDER BY id DESC`,
+            [studentId]
+        );
+
+        if (!notifications.length) {
+            return sendError(res, "No notifications found", 400);
+        }
+
+        return sendSuccess(res, notifications, "Notifications fetched successfully", 200);
+    }
+    catch (err) {
+        logger.error(`[Notification:student] getAllNotification error: ${err.message}`);
+        return sendError(res, "Failed to fetch notifications", 500);
+    }
+}
+
+async function markNotificationRead(req, res) {
+    try {
+
+        const studentId = req.user.user_id;
+        const { notificationId } = req.params;
+
+        if (!studentId) {
+            return sendError(res, "Student ID not found", 401);
+        }
+
+        if (!notificationId) {
+            return sendError(res, "Notification Id is undefined", 400);
+        }
+
+        const [result] = await db.query(
+            `UPDATE notification_portal.notifications
+                SET read_status = 1
+                WHERE id = ?
+                    AND user_id = ?
+                    AND user_type = 'student'
+                    AND platform = 'STUD'
+            `,
+            [notificationId, studentId]
+        )
+
+        console.log(result);
+
+        if (result.affectedRows === 0) {
+           return sendError(res, "Notification not found or already marked.", 400)
+        }
+
+        return sendSuccess(res, null, "Notification marked Succesfully.", 200)
+
+    } catch (err) {
+        logger.error(`[Notification:student] markNotfication error: ${err.message}`);
+        return sendError(res, "Failed to mark notifications", 500);
+    }
+}
+
+async function markAllNotificationRead(req, res) {
+    try {
+
+        const studentId = req.user.user_id;
+
+        if (!studentId) {
+            return sendError(res, "Student ID not found", 401);
+        }
+
+        const [result] = await db.query(
+            `UPDATE notification_portal.notifications
+                SET read_status = 1
+                WHERE user_id = ?
+                    AND read_status != 1
+                    AND user_type = 'student'
+                    AND platform = 'STUD'
+            `,
+            [studentId]
+        )
+
+        if (result.affectedRows === 0) {
+            sendError(res, "Notification not found or already marked.", 400)
+        }
+
+        return sendSuccess(res, null, "Notification marked Succesfully.", 200)
+
+    } catch (err) {
+        logger.error(`[Notification:student] markNotfication error: ${err.message}`);
+        return sendError(res, "Failed to mark notifications", 500);
+    }
+}
+
+async function deleteNotification(req, res) {
+    try {
+
+        const { notificationId } = req.params;
+        const studentId = req.user.user_id;
+
+        if (!studentId) {
+            return sendError(res, "Student ID not found", 401);
+        }
+
+        if (!notificationId) {
+            return sendError(res, "Notification Id is undefined", 400);
+        }
+
+        const [result] = await db.query(
+            `UPDATE notification_portal.notifications
+                SET is_active = 0
+                WHERE id = ?
+                    AND user_id = ?
+                    AND user_type = 'student'
+                    AND platform = 'STUD'
+            `,
+            [notificationId, studentId]
+        )
+
+        if (result.affectedRows === 0) {
+            sendError(res, "Notification not deleted", 400)
+        }
+
+        return sendSuccess(res, null, `Notification for id: ${notificationId} is deleted successfully.`)
+
+
+    } catch (err) {
+        logger.error(`[Notification:student] deleteNotfication error: ${err.message}`);
+        return sendError(res, "Failed to delete notifications", 500);
+    }
+}
+
+
+module.exports = { getAllNotification, markNotificationRead, deleteNotification, markAllNotificationRead };
