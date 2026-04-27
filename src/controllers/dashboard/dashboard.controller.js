@@ -88,7 +88,7 @@ async function dashboard(req, res) {
                     AND DATE(DateOnly) = ?
                     AND DeviceCategory = 'institute'
                     AND DeviceId != '21'
-                GROUP BY DATE(DateOnly)
+                
                 LIMIT 1`,
                 [essl_id, today]
             );

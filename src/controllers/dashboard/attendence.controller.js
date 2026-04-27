@@ -431,7 +431,6 @@ async function attendenceData(req, res) {
         return sendSuccess(res, {
             studentId,
             studentName: stud_name,
-            rollNo: stud_roll_no,
             isHosteller: isHostelStudent,
             todayClockIn,
             attendancePercentage: Math.round(percentage),

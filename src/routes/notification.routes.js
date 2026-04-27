@@ -6,7 +6,7 @@ const NotificationCtrl = require('../controllers/student/notification.controller
 router.get(
     '/',
     auth(),
-    NotificationCtrl.getAllNotification
+    NotificationCtrl.notification
 );
 
 /// mark notification as read

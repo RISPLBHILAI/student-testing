@@ -2,31 +2,52 @@ const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
-async function getAllNotification(req, res) {
+async function notification(req, res) {
     try {
         const studentId = req.user.user_id;
-
         if (!studentId) {
             return sendError(res, "Student ID not found in session", 401);
         }
 
-        const [notifications] = await db.query(
-            `SELECT *
-              FROM notification_portal.notifications
-              WHERE platform = 'STUD' 
-              AND user_type = 'student'
-              AND user_id = ? 
-              ORDER BY id DESC`,
-            [studentId]
-        );
+        const limit = parseInt(req.query.limit) || 10;
+        const lastId = parseInt(req.query.lastId) || null; // cursor
 
-        if (!notifications.length) {
-            return sendError(res, "No notifications found", 400);
+        const params = [studentId];
+        let cursorClause = '';
+
+        if (lastId) {
+            cursorClause = 'AND id < ?';
+            params.push(lastId);
         }
 
-        return sendSuccess(res, notifications, "Notifications fetched successfully", 200);
-    }
-    catch (err) {
+        params.push(limit + 1); // fetch one extra to check if there's a next page
+
+        const [notifications] = await db.query(
+            `SELECT 
+                id, heading, sub_heading, description,
+                read_status, sent_at, icon, image_url, media
+             FROM notification_portal.notifications
+             WHERE platform = 'STUD'
+               AND user_type = 'student'
+               AND user_id = ?
+               ${cursorClause}
+             ORDER BY id DESC
+             LIMIT ?`,
+            params
+        );
+
+        const hasMore = notifications.length > limit;
+        const data = hasMore ? notifications.slice(0, limit) : notifications;
+        const nextCursor = hasMore ? data[data.length - 1].id : null;
+
+        return sendSuccess(res, {
+            notifications: data,
+            hasMore,
+            nextCursor,      // frontend passes this as lastId in the next request
+            total: data.length,
+        }, "Notifications fetched successfully", 200);
+
+    } catch (err) {
         logger.error(`[Notification:student] getAllNotification error: ${err.message}`);
         return sendError(res, "Failed to fetch notifications", 500);
     }
@@ -60,7 +81,7 @@ async function markNotificationRead(req, res) {
         console.log(result);
 
         if (result.affectedRows === 0) {
-           return sendError(res, "Notification not found or already marked.", 400)
+            return sendError(res, "Notification not found or already marked.", 400)
         }
 
         return sendSuccess(res, null, "Notification marked Succesfully.", 200)
@@ -142,4 +163,4 @@ async function deleteNotification(req, res) {
 }
 
 
-module.exports = { getAllNotification, markNotificationRead, deleteNotification, markAllNotificationRead };
+module.exports = { notification, markNotificationRead, deleteNotification, markAllNotificationRead };
