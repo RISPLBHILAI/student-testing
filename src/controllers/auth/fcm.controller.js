@@ -7,42 +7,109 @@
  * DELETE /api/emp/auth/fcm      → delete token on logout (protected)
  */
 
-const db     = require("../../../../shared/db/mysql");
+const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
 // ─── POST /auth/fcm ───────────────────────────────────────────────────────────
 async function saveFcmToken(req, res) {
-    const { fcm_token, app_version } = req.body;
-    const emp_id = req.user.user_id;
+    const { token, deviceType } = req.body;
 
-    if (!fcm_token) {
+    const stud_id = req.user.user_id;
+
+    if (!token) {
         return sendError(res, "FCM token is required", 400);
     }
 
-    const deviceInfo = req.headers["user-agent"] || null;
-
     try {
-        // Upsert — one token per employee
-        await db.query(
-            `INSERT INTO notification_portal.fcm_id_record(emp_id, fcm_id, device_type, app_version)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         fcm_id     = VALUES(fcm_id),
-         device_type = VALUES(device_type),
-         app_version = VALUES(app_version),
-         updated_at  = NOW()`,
-            [emp_id, fcm_token, deviceInfo, app_version || null]
+
+        // -----------------------------
+        // CHECK EXISTING ENTRY
+        // -----------------------------
+
+        const [rows] = await db.query(
+            `
+            SELECT id
+            FROM notification_portal.fcm_id_record
+            WHERE stud_id = ?
+              AND panel = 'STUD'
+            LIMIT 1
+            `,
+            [stud_id]
         );
 
-        logger.debug(`[FCM:emp] Token saved for emp_id=${emp_id}`);
+        // -----------------------------
+        // INSERT
+        // -----------------------------
+
+        if (rows.length === 0) {
+
+            await db.query(
+                `
+                INSERT INTO notification_portal.fcm_id_record (
+                    panel,
+                    expo_push_token,
+                    push_provider,
+                    user_type,
+                    stud_id,
+                    device_type,
+                    created_on,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                `,
+                [
+                    'STUD',
+                    token,
+                    'EXPO',
+                    'student',
+                    stud_id,
+                    deviceType
+                ]
+            );
+
+            logger.debug(`[FCM] New token inserted for stud_id=${stud_id}`);
+
+        }
+
+        // -----------------------------
+        // UPDATE
+        // -----------------------------
+
+        else {
+
+            await db.query(
+                `
+                UPDATE notification_portal.fcm_id_record
+                SET
+                    expo_push_token = ?,
+                    device_type = ?,
+                    updated_at = NOW()
+                WHERE
+                    stud_id = ?
+                    AND panel = 'STUD'
+                `,
+                [
+                    token,
+                    deviceType,
+                    stud_id
+                ]
+            );
+
+            logger.debug(`[FCM] Existing token updated for stud_id=${stud_id}`);
+        }
+
         return sendSuccess(res, null, "FCM token saved");
+
     } catch (err) {
-        logger.error(`[FCM:emp] Save error for emp_id=${emp_id}: ${err.message}`);
+
+        logger.error(
+            `[FCM] Save error for stud_id=${stud_id}: ${err.message}`
+        );
+
         return sendError(res, "Failed to save FCM token", 500);
     }
 }
-
 // ─── DELETE /auth/fcm ─────────────────────────────────────────────────────────
 async function deleteFcmToken(req, res) {
     const emp_id = req.user.user_id;

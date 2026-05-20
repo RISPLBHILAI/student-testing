@@ -29,4 +29,9 @@ router.post(
     auth(),
     NotificationCtrl.markAllNotificationRead);
 
+router.get(
+    '/unread-count',
+    auth(),
+    NotificationCtrl.unreadCount);
+
 module.exports = router;

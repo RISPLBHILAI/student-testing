@@ -32,6 +32,9 @@ async function dashboard(req, res) {
             return sendError(res, "Student not found", 404);
         }
 
+          const student_profile_pic = `https://myrungta.com/erp/StudentPanel/stud_photos/${studentInfo[0]?.stud_profile_pic}` || '';
+
+
         const { essl_id, clg_id, cor_id, branch_id, sem_year_id } = studentInfo[0];
 
         const today = new Date().toISOString().split('T')[0];
@@ -106,13 +109,16 @@ async function dashboard(req, res) {
 
         }
 
-        console.log(`📚 Fetching today's timetable for student ID: ${student_id}`);
+        // console.log(`📚 Fetching today's timetable for student ID: ${student_id}`);
 
         const result = await Timetable.getTodayTimetable(student_id);
         const formattedTimetable = Timetable.formatTimetableData(result.timetable);
 
         return sendSuccess(res, {
-            student: studentInfo[0],
+            student: {
+                ...studentInfo[0],
+                student_profile_pic
+            },
             attendance: todayIntime,
             timeTable: formattedTimetable
         }, "Dashboard fetched successfully");
@@ -136,31 +142,35 @@ async function allSubjects(req, res) {
 
         const [rows] = await db.query(
             `SELECT
-                fsua.id,
-                sa.subject_name,
-                sa.id AS subject_id,
-                sa.semester_id AS sem_year_id,
-                em.emp_name,
-                sa.subject_type,
-                fsua.emp_id,
-                fsua.session,
-                fsua.clg_id
-             FROM faculty_subject_unit_allotment fsua
-             INNER JOIN stud_current_sem_year scsy
-                ON fsua.clg_id = scsy.clg_id
-                AND fsua.courseID = scsy.cor_id
-                AND fsua.branch_id = scsy.branch_id
-             LEFT JOIN subject_allotment sa
-                ON fsua.subject_id = sa.id
-             LEFT JOIN employee_master em
-                ON fsua.emp_id = em.emp_id
-             WHERE
-                scsy.stud_id = ?
-                AND sa.subject_name IS NOT NULL
-                AND sa.is_active = 1
-                AND sa.semester_id = scsy.sem_year_id
-                AND em.enable_status = 1
-             GROUP BY sa.id`,
+                    MAX(fsua.id) AS id,
+                    sa.subject_name,
+                    sa.id AS subject_id,
+                    sa.semester_id AS sem_year_id,
+                    MAX(em.emp_name) AS emp_name,
+                    sa.subject_type,
+                    MAX(fsua.emp_id) AS emp_id,
+                    MAX(fsua.session) AS session,
+                    MAX(fsua.clg_id) AS clg_id
+                FROM faculty_subject_unit_allotment fsua
+                INNER JOIN stud_current_sem_year scsy
+                    ON fsua.clg_id = scsy.clg_id
+                    AND fsua.courseID = scsy.cor_id
+                    AND fsua.branch_id = scsy.branch_id
+                LEFT JOIN subject_allotment sa
+                    ON fsua.subject_id = sa.id
+                LEFT JOIN employee_master em
+                    ON fsua.emp_id = em.emp_id
+                WHERE
+                    scsy.stud_id = ?
+                    AND sa.subject_name IS NOT NULL
+                    AND sa.is_active = 1
+                    AND sa.semester_id = scsy.sem_year_id
+                    AND em.enable_status = 1
+                GROUP BY
+                    sa.id,
+                    sa.subject_name,
+                    sa.semester_id,
+                    sa.subject_type`,
             [studentId]
         );
 
@@ -187,7 +197,7 @@ async function studentResults(req, res) {
         const [universityRollNoRows] = await db.query(
             `SELECT university_roll_no
              FROM tblstud_profile
-             WHERE id = ?`,
+               WHERE id = ?`,
             [studentId]
         );
 
@@ -209,7 +219,6 @@ async function studentResults(req, res) {
              WHERE
                 urs.Roll_No = ?
                 AND sa.is_active = 1
-             GROUP BY urs.subject_code
              ORDER BY urs.semester`,
             [universityRollNo]
         );

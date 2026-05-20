@@ -187,7 +187,7 @@ async function verifyOtp(req, res) {
         if (students.length === 1) {
             const student = studentRecords[0];
 
-            // // ── Log login ────────────────────────────────────────────────────────────
+            // ── Log login ────────────────────────────────────────────────────────────
             // await db.query(
             //     `INSERT INTO employee_login_logs (u_id, login_date_time, verified_otp)
             //      VALUES (?, ?, ?)`,
@@ -197,7 +197,7 @@ async function verifyOtp(req, res) {
             // ── Open app session (for active user tracking) ───────────────────────
             // if (!IS_DEV) {
             //     await db.query(
-            //         `INSERT INTO emp_app_sessions (emp_id, login_at, last_seen_at, ip, device_info)
+            //         `INSERT INTO notification_portal.emp_app_sessions (emp_id, login_at, last_seen_at, ip, device_info)
             //  VALUES (?, NOW(), NOW(), ?, ?)`,
             //         [student.emp_id, ip, req.headers["user-agent"] || null]
             //     );

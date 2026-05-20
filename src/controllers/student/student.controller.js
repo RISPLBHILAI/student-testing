@@ -2,7 +2,7 @@ const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
-async function getStudentProfile(req, res) {
+async function profile(req, res) {
     try {
 
         const studentId = req.user.user_id;
@@ -31,19 +31,26 @@ async function getStudentProfile(req, res) {
             [studentId]
         );
 
+        const student_profile_pic = `https://myrungta.com/erp/StudentPanel/stud_photos/${studentInfo[0]?.stud_profile_pic}` || '';
+
         if (!studentInfo.length) {
             return sendError(res, "Student not found", 404);
         }
 
         logger.debug(`[Student:student] getStudentProfile → student_id=${studentId} result=${studentInfo[0]}`);
 
-        return sendSuccess(res, studentInfo[0], "Student profile fetched successfully");
+        return sendSuccess(res, {
+            ...studentInfo[0],
+            student_profile_pic
+        }, "Student profile fetched successfully");
 
     }
+
+
     catch (err) {
         logger.error(`[Student:student] getStudentProfile error: ${err.message}`);
         return sendError(res, "Failed to fetch student profile", 500);
     }
 }
 
-module.exports = { getStudentProfile };
+module.exports = { profile };

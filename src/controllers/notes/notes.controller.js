@@ -2,91 +2,66 @@ const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
-const NOTES_BASE_URL = process.env.NOTES_BASE_URL;
+const NOTES_BASE_URL = 'https://myrungta.com/erp/adminpanel/notes/';
 
 async function notes(req, res) {
     try {
         const studentId = req.user.user_id;
 
-        logger.info(`[Notes] Fetching all notes for student: ${studentId}`);
+        logger.info(`[Notes] Fetching notes for student: ${studentId}`);
 
+        // Get student academic details
         const [studentRows] = await db.query(
-            `SELECT clg_id, cor_id, branch_id, sem_year_id AS sem_id 
-             FROM stud_current_sem_year WHERE stud_id = ?`,
+            `SELECT 
+                clg_id, 
+                cor_id, 
+                branch_id, 
+                sem_year_id AS sem_id
+             FROM stud_current_sem_year
+             WHERE stud_id = ?`,
             [studentId]
         );
 
-        if (studentRows.length === 0) {
+        if (!studentRows.length) {
             return sendError(res, 'Student not found', 404);
         }
 
         const { clg_id, cor_id, branch_id, sem_id } = studentRows[0];
 
+        // Fetch drive link
         const [notes] = await db.query(
-            `SELECT
-                unitwisenotes.*,
-                tblcollege.short_name as collegeName,
-                tblcourse.cor_name as courseName,
-                tblbranch_subject.branch_sub_name as branchName,
-                employee_master.emp_name as facultyName,
-                subject_allotment.subject_name as subjectName,
-                unitwisenotes.unit_name as unitName
+            `SELECT google_drive_link
              FROM unitwisenotes
-             INNER JOIN tblcollege ON tblcollege.id = unitwisenotes.clg_id
-             INNER JOIN tblcourse ON tblcourse.id = unitwisenotes.cor_id
-             INNER JOIN tblbranch_subject ON tblbranch_subject.id = unitwisenotes.branch_id
-             INNER JOIN employee_master ON employee_master.emp_id = unitwisenotes.faculty_id
-             INNER JOIN subject_to_unit ON subject_to_unit.id = unitwisenotes.unit_id
-             INNER JOIN subject_allotment ON subject_allotment.id = unitwisenotes.subject_id
-             WHERE unitwisenotes.clg_id = ?
-               AND unitwisenotes.cor_id = ?
-               AND unitwisenotes.branch_id = ?
-               AND unitwisenotes.sem_id = ?
-             ORDER BY subject_allotment.subject_name, unitwisenotes.unit_name, unitwisenotes.id DESC`,
+             WHERE clg_id = ?
+               AND cor_id = ?
+               AND branch_id = ?
+               AND sem_id = ?
+               AND notes_type = 1
+               AND delete_status != 1
+             LIMIT 1`,
             [clg_id, cor_id, branch_id, sem_id]
         );
 
-        const subjectsMap = {};
+        const driveLink =
+            notes.length > 0 && notes[0].google_drive_link
+                ? notes[0].google_drive_link
+                : '';
 
-        notes.forEach(note => {
-            const subjectId = note.subject_id;
+        logger.info(
+            `[Notes] Drive link ${driveLink ? 'found' : 'not found'} for student: ${studentId}`
+        );
 
-            if (!subjectsMap[subjectId]) {
-                subjectsMap[subjectId] = {
-                    subjectId,
-                    subjectName: note.subjectName,
-                    notes: []
-                };
-            }
-
-            subjectsMap[subjectId].notes.push({
-                noteId: note.id,
-                title: note.note_title || note.unitName,
-                unitName: note.unitName,
-                fileName: note.file_name,
-                fileUrl: note.file_name ? `${NOTES_BASE_URL}${note.file_name}` : null,
-                facultyName: note.facultyName,
-                uploadedAt: note.created_at || note.upload_date,
-                description: note.description || ''
-            });
-        });
-
-        const subjects = Object.values(subjectsMap);
-
-        logger.info(`[Notes] Found ${notes.length} notes across ${subjects.length} subjects for student: ${studentId}`);
-
-        return sendSuccess(res, {
-            student: {
-                collegeName: notes[0]?.collegeName || '',
-                courseName: notes[0]?.courseName || '',
-                branchName: notes[0]?.branchName || ''
+        return sendSuccess(
+            res,
+            {
+                drive_link: driveLink
             },
-            subjects,
-            totalNotes: notes.length
-        }, 'Notes fetched successfully');
+            'Notes fetched successfully'
+        );
 
     } catch (err) {
         logger.error(`[Notes] getNotes error: ${err.message}`);
+
         return sendError(res, 'Failed to fetch notes', 500);
     }
 }

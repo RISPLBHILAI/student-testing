@@ -98,9 +98,85 @@ async function getMonthlyFeesDetails(req, res) {
             return sendError(res, 'No fee structure found for this student', 404);
         }
 
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let isDueDatePassed = 0;
+        let isAnyPaymentDone = 0;
+        let isFineCalculated = 0;
+
+        const result = [];
+
+        for (const row of rows) {
+            const rowTotalAmount = parseFloat(row.amount) || 0;
+            const rowPaidAmount = parseFloat(row.paid_amount) || 0;
+            const remainingAmount = Math.round((rowTotalAmount - rowPaidAmount) * 100) / 100;
+
+            const dueDate = new Date(row.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+
+            if (today > dueDate) isDueDatePassed = 1;
+            if (rowPaidAmount > 0) isAnyPaymentDone = 1;
+
+            const isFineApplicable = parseInt(row.is_fine_applicable) || 0;
+
+            let fineAmount = 0;
+            let finePaidAmount = 0;
+            let fineDays = 0;
+
+            if (isFineApplicable === 1 && isFineCalculated === 0 && remainingAmount > 1) {
+                fineAmount = parseInt(row.fine_amount) || 20;
+
+                if (today > dueDate) {
+                    isFineCalculated = 1;
+                    fineDays = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                    fineAmount = Math.round(fineAmount * fineDays * 100) / 100;
+                } else {
+                    fineAmount = 0;
+                }
+            }
+
+            if (isFineApplicable > 0) {
+                const [finePaidRows] = await db.query(
+                    `SELECT * FROM rps_student_fees_structure
+                     WHERE stud_id = ?
+                       AND clg_id = ?
+                       AND cor_id = ?
+                       AND branch_id = ?
+                       AND sem_id = ?
+                       AND due_date = ?
+                       AND fee_type_id = '36'
+                       AND paid_amount > 0
+                     LIMIT 1`,
+                    [studentId, clg_id, cor_id, branch_id, sem_year_id, row.due_date]
+                );
+
+                if (finePaidRows.length > 0) {
+                    const finePaidRow = finePaidRows[0];
+                    if (parseFloat(finePaidRow.paid_amount) > 0) {
+                        finePaidAmount = parseFloat(finePaidRow.paid_amount);
+                        fineAmount = parseFloat(finePaidRow.total_amount);
+
+                        const paidDate = new Date(finePaidRow.paid_date);
+                        paidDate.setHours(0, 0, 0, 0);
+                        fineDays = Math.floor((paidDate - dueDate) / (1000 * 60 * 60 * 24));
+                    }
+                }
+            }
+
+            result.push({
+                ...row,
+                isDueDatePassed,
+                isAnyPaymentDone,
+                fine_amount: fineAmount,
+                fine_days: fineDays,
+                fine_paid_amount: finePaidAmount,
+            });
+        }
+
         logger.info(`[Fees] Monthly fee details fetched for student: ${studentId}`);
 
-        return sendSuccess(res, { fees: rows }, 'Monthly fee details fetched successfully');
+        return sendSuccess(res, { fees: result }, 'Monthly fee details fetched successfully');
 
     } catch (err) {
         logger.error(`[Fees] getMonthlyFeesDetails error: ${err.message}`);

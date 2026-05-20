@@ -23,7 +23,7 @@ async function findStudentsByMobile(mobile) {
 // ─── GET /auth/isregistered ───────────────────────────────────────────────────
 async function isRegistered(req, res) {
     try {
-        const mobile = req.body?.mobile || req.user?.mobile || null;
+        const mobile = req.query?.mobile || req.user?.mobile || null;
 
         if (!mobile) {
             return sendError(res, "Mobile number is required", 400);

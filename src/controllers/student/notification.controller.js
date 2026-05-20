@@ -31,7 +31,7 @@ async function notification(req, res) {
                AND user_type = 'student'
                AND user_id = ?
                ${cursorClause}
-             ORDER BY id DESC
+             ORDER BY read_status ASC, id DESC
              LIMIT ?`,
             params
         );
@@ -89,6 +89,44 @@ async function markNotificationRead(req, res) {
     } catch (err) {
         logger.error(`[Notification:student] markNotfication error: ${err.message}`);
         return sendError(res, "Failed to mark notifications", 500);
+    }
+}
+
+async function unreadCount(req, res) {
+    try {
+        const studentId = req.user.user_id;
+
+        if (!studentId) {
+            return sendError(res, "Student ID not found", 401);
+        }
+
+        const [rows] = await db.query(
+            `SELECT 
+                COUNT(*) AS unread_count
+             FROM notification_portal.notifications
+             WHERE platform = 'STUD'
+               AND (user_id = ? OR user_id = 0)
+               AND read_status = 0`,
+            [studentId]
+        );
+
+        const unreadCount = rows[0]?.unread_count || 0;
+
+        return sendSuccess(
+            res,
+            {
+                unread_count: unreadCount
+            },
+            "Unread notification count fetched successfully",
+            200
+        );
+
+    } catch (err) {
+        logger.error(
+            `[Notification:student] unreadCount error: ${err.message}`
+        );
+
+        return sendError(res, "Failed to fetch unread count", 500);
     }
 }
 
@@ -163,4 +201,4 @@ async function deleteNotification(req, res) {
 }
 
 
-module.exports = { notification, markNotificationRead, deleteNotification, markAllNotificationRead };
+module.exports = { notification, markNotificationRead, deleteNotification, markAllNotificationRead, unreadCount };

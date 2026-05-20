@@ -329,16 +329,18 @@ WHERE
      */
     static async getAcademicPaidDate(studId, clgId, corId, branchId, semId) {
         const sql = `
-            SELECT
-                MAX(DATE(last_paid_date)) AS last_academic_paid_date,
-                due_date as academic_due_date
+            SELECT 
+                DATE(last_paid_date) AS last_academic_paid_date,
+                due_date AS academic_due_date
             FROM student_applicable_fee
-            WHERE stud_id = ? 
-            AND clg_id = ? 
-            AND cor_id = ? 
-            AND branch_id = ? 
+            WHERE stud_id = ?
+            AND clg_id = ?
+            AND cor_id = ?
+            AND branch_id = ?
             AND sem_id = ?
-            AND fee_category NOT IN(20, 17, 18, 11, 10)
+            AND fee_category NOT IN (20, 17, 18, 11, 10)
+            ORDER BY last_paid_date DESC
+            LIMIT 1;
         `;
 
         const [rows] = await db.query(sql, [studId, clgId, corId, branchId, semId]);
@@ -1928,7 +1930,7 @@ WHERE
 
             const [rows] = await db.query(sql, [studId, semId]);
 
-            console.log('📚 Scholarship Data for student', studId, ':', rows);
+            // console.log('📚 Scholarship Data for student', studId, ':', rows);
 
             return rows || [];
         } catch (error) {
