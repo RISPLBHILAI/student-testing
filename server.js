@@ -27,6 +27,8 @@ const helmet       = require("helmet");
 const cors         = require("cors");
 const morgan       = require("morgan");
 const cookieParser = require("cookie-parser");
+const https = require('https');
+const fs = require('fs');
 
 const { globalLimiter }          = require("../shared/middlewares/rateLimiter");
 const { notFound, errorHandler } = require("../shared/middlewares/errorHandler");
@@ -35,6 +37,12 @@ const routes                     = require("./src/routes");
 const app = express();
 
 // ─── 4. Global middleware ─────────────────────────────────────────────────────
+
+const options = {
+    key: fs.readFileSync('/opt/lampp/etc/ssl/myrungta.com.key'),
+    cert: fs.readFileSync('/opt/lampp/etc/ssl/myrungta.com.crt'),
+    ca: fs.readFileSync('/opt/lampp/etc/ssl/gd_bundle-g2.crt')
+};
 
 // Security headers
 app.use(helmet());
@@ -97,16 +105,15 @@ app.use(errorHandler);
 // ─── 7. Start server ──────────────────────────────────────────────────────────
 const PORT = config.app.port;
 
-const server = app.listen(PORT, "127.0.0.1", () => {
+const server = https.createServer(options, app);
+
+server.listen(PORT, () => {
   logger.info("─────────────────────────────────────────────────────");
   logger.info(`  SRGI Student API`);
   logger.info(`  ENV  : ${config.app.env}`);
   logger.info(`  PORT : ${PORT}`);
-  logger.info(`  URL  : http://127.0.0.1:${PORT}/api/student`);
+  logger.info(`  URL  : https://myrungta.com:${PORT}/api/student`);
   logger.info(`  DB   : ${config.db.host}:${config.db.port}/${config.db.name}`);
-  if (config.app.isDev) {
-    logger.info(`  MODE : Auth passthrough ON — no tokens needed`);
-  }
   logger.info("─────────────────────────────────────────────────────");
 });
 
