@@ -22,6 +22,25 @@ async function notification(req, res) {
 
         params.push(limit + 1); // fetch one extra to check if there's a next page
 
+         const [[{ total }]] = await db.query(
+                    `SELECT COUNT(*) AS total
+                     FROM notification_portal.notifications
+                     WHERE platform = 'student'
+                       AND (user_id = ? OR user_id = 0)`,
+                    [studentId]
+                );
+        
+                   const [rows] = await db.query(
+                    `  SELECT COUNT(*)
+                    AS unread_count 
+                    FROM notification_portal.notifications 
+                    WHERE platform = 'student' 
+                    AND (user_id = ? OR user_id = 0) 
+                    AND read_status = 0;
+                    `,
+                    [studentId]
+                );
+
         const [notifications] = await db.query(
             `SELECT 
                 id, heading, sub_heading, description,
@@ -41,6 +60,8 @@ async function notification(req, res) {
         const nextCursor = hasMore ? data[data.length - 1].id : null;
 
         return sendSuccess(res, {
+            total,
+            unread_count:rows[0].unread_count,
             notifications: data,
             hasMore,
             nextCursor,      // frontend passes this as lastId in the next request

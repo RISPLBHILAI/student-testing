@@ -15,18 +15,25 @@ const formatDateDMY = (dateStr) => {
     return `${d}-${m}-${y}`;
 };
 
-// Add this at the top of your file
-const toDateKey = (val) => {
-    if (!val) return null;
-    // If it's already a YYYY-MM-DD string, return as-is
-    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-    // If it's a Date object or datetime string, extract YYYY-MM-DD without UTC conversion
-    const d = new Date(val);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-};
+function toDateKey(date) {
+    if (date instanceof Date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    return String(date).slice(0, 10);
+}
+
+// ✅ Get today's date in IST
+function getTodayIST() {
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST = UTC+5:30
+    const ist = new Date(now.getTime() + istOffset);
+    return ist.toISOString().slice(0, 10);
+}
+
+const today = getTodayIST();
 
 async function attendencePercentage(req, res) {
     try {
@@ -63,7 +70,7 @@ async function attendencePercentage(req, res) {
 
         const { session, class_commencment_date, class_end_date } = sessionRows[0];
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayIST();
         const fromDate = class_commencment_date;
         const toDate = today <= class_end_date ? today : class_end_date;
 

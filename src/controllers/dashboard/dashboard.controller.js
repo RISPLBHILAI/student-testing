@@ -223,9 +223,26 @@ async function studentResults(req, res) {
             [universityRollNo]
         );
 
+            // Compute overall pass/fail counts across all semesters
+        let totalPassed = 0;
+        let totalFailed = 0;
+
+        rows.forEach((subject) => {
+            const obtained = parseInt(subject.marks_obtained_total) || 0;
+            const maxMarks = parseInt(subject.max_marks_total) || 100;
+            const isPassed = obtained >= maxMarks * 0.4 && obtained > 0;
+            if (isPassed) {
+                totalPassed++;
+            } else {
+                totalFailed++;
+            }
+        });
+
         return sendSuccess(res, {
             universityRollNo,
             totalSubjects: rows.length,
+            totalPassed,
+            totalFailed,
             subjects: rows
         }, "Student results retrieved successfully", 200);
 
