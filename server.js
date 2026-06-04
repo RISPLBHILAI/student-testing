@@ -40,9 +40,9 @@ const app = express();
 // ─── SSL  ─────────────────────────────────────────────────────
 
 const sslOptions = {
-  key: fs.readFileSync('/.com.key'),
-  cert: fs.readFileSync('/.crt'),
-  ca: fs.readFileSync('/crt')
+  key: fs.readFileSync('/opt/lampp/etc/ssl/myrungta.com.key'),
+  cert: fs.readFileSync('/opt/lampp/etc/ssl/myrungta.com.crt'),
+  ca: fs.readFileSync('/opt/lampp/etc/ssl/gd_bundle-g2.crt')
 };
 
 // ─── 4. Global middleware ─────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ server.listen(PORT, "127.0.0.1", () => {
   logger.info(`  SRGI Student API`);
   logger.info(`  ENV  : ${config.app.env}`);
   logger.info(`  PORT : ${PORT}`);
-  logger.info(`  URL  : http://127.0.0.1:${PORT}/api/student`);
+  logger.info(`  URL  : https://127.0.0.1:${PORT}/api/student`);
   logger.info(`  DB   : ${config.db.host}:${config.db.port}/${config.db.name}`);
   if (config.app.isDev) {
     logger.info(`  MODE : Auth passthrough ON — no tokens needed`);
