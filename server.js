@@ -22,17 +22,28 @@ const config = require("./src/config");
 const logger = require("../shared/utils/logger");
 
 // ─── 3. Express ───────────────────────────────────────────────────────────────
-const express      = require("express");
-const helmet       = require("helmet");
-const cors         = require("cors");
-const morgan       = require("morgan");
+const express = require("express");
+const helmet = require("helmet");
+const cors = require("cors");
+const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 
-const { globalLimiter }          = require("../shared/middlewares/rateLimiter");
+const https = require("https");
+const fs = require("fs");
+
+const { globalLimiter } = require("../shared/middlewares/rateLimiter");
 const { notFound, errorHandler } = require("../shared/middlewares/errorHandler");
-const routes                     = require("./src/routes");
+const routes = require("./src/routes");
 
 const app = express();
+
+// ─── SSL  ─────────────────────────────────────────────────────
+
+const sslOptions = {
+  key: fs.readFileSync('/.com.key'),
+  cert: fs.readFileSync('/.crt'),
+  ca: fs.readFileSync('/crt')
+};
 
 // ─── 4. Global middleware ─────────────────────────────────────────────────────
 
@@ -97,7 +108,9 @@ app.use(errorHandler);
 // ─── 7. Start server ──────────────────────────────────────────────────────────
 const PORT = config.app.port;
 
-const server = app.listen(PORT, "127.0.0.1", () => {
+const server = https.createServer(sslOptions, app);
+
+server.listen(PORT, "127.0.0.1", () => {
   logger.info("─────────────────────────────────────────────────────");
   logger.info(`  SRGI Student API`);
   logger.info(`  ENV  : ${config.app.env}`);
@@ -128,7 +141,7 @@ function shutdown(signal) {
   }, 10_000);
 }
 
-process.on("SIGINT",  () => shutdown("SIGINT"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 process.on("uncaughtException", (err) => {
