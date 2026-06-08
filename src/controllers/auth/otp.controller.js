@@ -38,17 +38,17 @@ async function sendOtp(req, res) {
     const isBypass = otpSvc.isBypassMobile(mobile_no);
 
     try {
+        // ── Bypass mobiles: skip OTP sending ─────────────────────────────────────
+        if (isBypass) {
+            logger.debug(`[OTP:student] Bypass mobile ${mobile_no} — skipping send`);
+            return sendSuccess(res, null, "OTP sent successfully");
+        }
         // ── Check student exists ────────────────────────────────────────────────
         const student = await findStudentByMobile(mobile_no);
         if (!student) {
             return sendError(res, "Mobile number not registered or account inactive", 404);
         }
 
-        // ── Bypass mobiles: skip OTP sending ─────────────────────────────────────
-        if (isBypass) {
-            logger.debug(`[OTP:student] Bypass mobile ${mobile_no} — skipping send`);
-            return sendSuccess(res, null, "OTP sent successfully");
-        }
 
         // ── Generate and store OTP ───────────────────────────────────────────────
         const otp = await otpSvc.createAndStore(mobile_no, ip, userAgent, "student");
