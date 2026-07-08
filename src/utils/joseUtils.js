@@ -1,4 +1,10 @@
-const jose = require('jose');
+let jose;
+async function getJose() {
+  if (!jose) {
+    jose = await import('jose');
+  }
+  return jose;
+}
 
 const encryptAndSign = async (payload, config) => {
     const { encryptionKey, encryptionKeyId, signingKey, signingKeyId, clientId } = config;
