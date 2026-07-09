@@ -515,7 +515,7 @@ async function createOrder(req, res) {
         }, "Order created successfully", 200);
 
     } catch (error) {
-        logger.error(`[Billdesk] createOrder error: ${error.message}`);
+        logger.error(`[Billdesk] createOrder error: ${error.message}\n${error.stack}`);
 
         if (error.response?.data && !error.response.headers['content-type']?.includes('jose')) {
             logger.error(`[Billdesk] PHP error: ${JSON.stringify(error.response.data)}`);
