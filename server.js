@@ -15,6 +15,13 @@
  *   8. Handle graceful shutdown
  */
 
+// ─── 0. Crypto polyfill (must be first — jose v6 needs globalThis.crypto) ─────
+const { webcrypto } = require("crypto");
+if (!globalThis.crypto) {
+  globalThis.crypto = webcrypto;
+}
+console.log("crypto polyfill check:", typeof globalThis.crypto, typeof globalThis.crypto?.getRandomValues);
+
 // ─── 1. Config (must be first — loads dotenv) ─────────────────────────────────
 const config = require("./src/config");
 
@@ -22,15 +29,15 @@ const config = require("./src/config");
 const logger = require("../shared/utils/logger");
 
 // ─── 3. Express ───────────────────────────────────────────────────────────────
-const express      = require("express");
-const helmet       = require("helmet");
-const cors         = require("cors");
-const morgan       = require("morgan");
+const express = require("express");
+const helmet = require("helmet");
+const cors = require("cors");
+const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 
-const { globalLimiter }          = require("../shared/middlewares/rateLimiter");
+const { globalLimiter } = require("../shared/middlewares/rateLimiter");
 const { notFound, errorHandler } = require("../shared/middlewares/errorHandler");
-const routes                     = require("./src/routes");
+const routes = require("./src/routes");
 
 const app = express();
 
@@ -71,6 +78,8 @@ app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 // Cookie parser (for httpOnly refresh token cookie)
 app.use(cookieParser());
+
+app.use(morgan("dev"));
 
 // HTTP request logging
 if (config.app.isDev) {
@@ -128,7 +137,7 @@ function shutdown(signal) {
   }, 10_000);
 }
 
-process.on("SIGINT",  () => shutdown("SIGINT"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 process.on("uncaughtException", (err) => {

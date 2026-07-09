@@ -475,7 +475,7 @@ async function createOrder(req, res) {
             amount,
             order_date: orderDate,
             currency:   '356',
-            ru:         'https://myrungta.com:8080/student/api/billdesk/payment-callback',
+            ru:         'https://myrungta.com:8080/api/student/billdesk/payment-callback',
             itemcode:   'DIRECT',
             device:     deviceInfo,
             additional_info: {
