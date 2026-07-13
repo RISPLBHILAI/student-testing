@@ -47,25 +47,25 @@ const app = express();
 app.use(helmet());
 
 // CORS
-// const corsOptions = {
-//   origin: (origin, callback) => {
-//     if (!origin) return callback(null, true);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
 
-//     if (config.app.isDev) {
-//       return callback(null, true);
-//     }
+    if (config.app.isDev) {
+      return callback(null, true);
+    }
 
-//     if (config.cors.allowedOrigins.includes(origin)) {
-//       return callback(null, true);
-//     }
+    if (config.cors.allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-//     logger.warn(`[CORS] Blocked origin: ${origin}`);
-//     callback(new Error(`CORS: origin ${origin} not allowed`));
-//   },
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-//   allowedHeaders: ["Content-Type", "Authorization"],
-// };
+    logger.warn(`[CORS] Blocked origin: ${origin}`);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
 const CORS_EXEMPT_PATHS = [
   "/api/student/billdesk/payment-callback",
