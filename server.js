@@ -47,26 +47,36 @@ const app = express();
 app.use(helmet());
 
 // CORS
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+// const corsOptions = {
+//   origin: (origin, callback) => {
+//     if (!origin) return callback(null, true);
 
-    if (config.app.isDev) {
-      return callback(null, true);
-    }
+//     if (config.app.isDev) {
+//       return callback(null, true);
+//     }
 
-    if (config.cors.allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+//     if (config.cors.allowedOrigins.includes(origin)) {
+//       return callback(null, true);
+//     }
 
-    logger.warn(`[CORS] Blocked origin: ${origin}`);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-app.use(cors(corsOptions));
+//     logger.warn(`[CORS] Blocked origin: ${origin}`);
+//     callback(new Error(`CORS: origin ${origin} not allowed`));
+//   },
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
+
+const CORS_EXEMPT_PATHS = [
+  "/api/student/billdesk/payment-callback",
+];
+
+app.use((req, res, next) => {
+  if (CORS_EXEMPT_PATHS.some((path) => req.path.startsWith(path))) {
+    return next(); // skip cors() entirely for this route
+  }
+  cors(corsOptions)(req, res, next);
+});
 app.options("*", cors(corsOptions));
 
 // Trust proxy — required when behind NGINX on EC2
