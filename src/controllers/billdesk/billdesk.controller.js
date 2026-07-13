@@ -555,7 +555,7 @@ async function handleCallback(req, res) {
             }
 
             return res.redirect(
-                `/api/billdesk/payment-result?status=failed&message=${encodeURIComponent('Invalid response from payment gateway')}`
+                `/api/student/billdesk/payment-result?status=failed&message=${encodeURIComponent('Invalid response from payment gateway')}`
             );
         }
 
@@ -633,20 +633,20 @@ async function handleCallback(req, res) {
         if (!phpResponse.data.success) {
             logger.error(`[Billdesk] PHP callback failed: ${phpResponse.data.message}`);
             return res.redirect(
-                `/api/billdesk/payment-result?status=failed&message=${encodeURIComponent(phpResponse.data.message || 'Payment processing failed')}&orderId=${orderId}`
+                `/api/student/billdesk/payment-result?status=failed&message=${encodeURIComponent(phpResponse.data.message || 'Payment processing failed')}&orderId=${orderId}`
             );
         }
 
         if (authStatus === '0300') {
             logger.info(`[Billdesk] Payment SUCCESS for order: ${orderId}`);
             return res.redirect(
-                `/api/billdesk/payment-result?status=success&message=Payment Successful&orderId=${orderId}&txnId=${txnId}&amount=${txnAmt}`
+                `/api/student/billdesk/payment-result?status=success&message=Payment Successful&orderId=${orderId}&txnId=${txnId}&amount=${txnAmt}`
             );
         }
 
         logger.info(`[Billdesk] Payment FAILED for order: ${orderId}, status: ${authStatus}`);
         return res.redirect(
-            `/api/billdesk/payment-result?status=failed&message=${encodeURIComponent(getErrorMessage(authStatus, txnErrorType))}&orderId=${orderId}`
+            `/api/student/billdesk/payment-result?status=failed&message=${encodeURIComponent(getErrorMessage(authStatus, txnErrorType))}&orderId=${orderId}`
         );
 
     } catch (error) {
@@ -663,7 +663,7 @@ async function handleCallback(req, res) {
         }
 
         return res.redirect(
-            `/api/billdesk/payment-result?status=failed&message=${encodeURIComponent('Payment processing error')}`
+            `/api/student/billdesk/payment-result?status=failed&message=${encodeURIComponent('Payment processing error')}`
         );
     }
 }
