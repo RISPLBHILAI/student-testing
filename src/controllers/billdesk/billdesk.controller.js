@@ -10,13 +10,13 @@ const { encryptAndSign, verifyAndDecrypt } = require('../../utils/joseUtils');
 const MERCHANT_ID = process.env.BILLDESK_MERCHANT_ID;
 
 const COLLEGE_MERCHANT_IDS = {
-    'RIPSR':   process.env.BILLDESK_CHILD_MERCHANT_RIPSR,
-    'RIPS':    process.env.BILLDESK_CHILD_MERCHANT_RIPS,
-    'RISM':    process.env.BILLDESK_CHILD_MERCHANT_RISM,
-    'RCST':    process.env.BILLDESK_CHILD_MERCHANT_RCST,
-    'RCDSR':   process.env.BILLDESK_CHILD_MERCHANT_RCDSR,
+    'RIPSR': process.env.BILLDESK_CHILD_MERCHANT_RIPSR,
+    'RIPS': process.env.BILLDESK_CHILD_MERCHANT_RIPS,
+    'RISM': process.env.BILLDESK_CHILD_MERCHANT_RISM,
+    'RCST': process.env.BILLDESK_CHILD_MERCHANT_RCST,
+    'RCDSR': process.env.BILLDESK_CHILD_MERCHANT_RCDSR,
     'RSRRCET': process.env.BILLDESK_CHILD_MERCHANT_RSRRCET,
-    'RPITI':   process.env.BILLDESK_CHILD_MERCHANT_RPITI,
+    'RPITI': process.env.BILLDESK_CHILD_MERCHANT_RPITI,
 };
 
 const SCHOOL_MERCHANT_IDS = {
@@ -27,14 +27,14 @@ const MERCHANT_ID_HOS = process.env.BILLDESK_CHILD_MERCHANT_HOS;
 const MERCHANT_ID_TRA = process.env.BILLDESK_CHILD_MERCHANT_TRA;
 
 const BILLDESK_BASE_URL = process.env.BILLDESK_BASE_URL;
-const PHP_API_URL       = process.env.PHP_API_URL;
+const PHP_API_URL = process.env.PHP_API_URL;
 
 const config = {
-    encryptionKey:   process.env.BILLDESK_ENCRYPTION_KEY,
+    encryptionKey: process.env.BILLDESK_ENCRYPTION_KEY,
     encryptionKeyId: process.env.BILLDESK_ENCRYPTION_KEY_ID,
-    signingKey:      process.env.BILLDESK_SIGNING_KEY,
-    signingKeyId:    process.env.BILLDESK_SIGNING_KEY_ID,
-    clientId:        process.env.BILLDESK_CLIENT_ID
+    signingKey: process.env.BILLDESK_SIGNING_KEY,
+    signingKeyId: process.env.BILLDESK_SIGNING_KEY_ID,
+    clientId: process.env.BILLDESK_CLIENT_ID
 };
 
 // ─── Helper: resolve child merchant by payment type + college ─────────────────
@@ -83,14 +83,14 @@ function getErrorMessage(authStatus, txnErrorType) {
         '0399': 'Payment Failed',
         '0002': 'Payment Pending',
         '0001': 'Payment Error',
-        'NA':   'Transaction could not be processed'
+        'NA': 'Transaction could not be processed'
     };
 
     const txnErrorMessages = {
         'INV': 'Invalid transaction',
-        'TO':  'Transaction timeout',
-        'F':   'Transaction failed',
-        'D':   'Transaction declined'
+        'TO': 'Transaction timeout',
+        'F': 'Transaction failed',
+        'D': 'Transaction declined'
     };
 
     return txnErrorMessages[txnErrorType] || errorMessages[authStatus] || 'Payment could not be completed';
@@ -117,13 +117,13 @@ async function processAcademicPayment({
         fineAmt, duration, multiplier, fineType, fineAppliedOn, totalFine,
         scholarshipAmt, remainingDueDate,
         ipAddress: clientIp,
-        installment_id:          installmentId,
-        installment_no:          installmentNo,
-        applied_inst_id:         appliedInstId,
-        payable_amount:          payableAmount,
-        fine_duration:           fineDuration || duration,
-        total_amount:            totalAmount,
-        total_with_interest:     totalWithInterest,
+        installment_id: installmentId,
+        installment_no: installmentNo,
+        applied_inst_id: appliedInstId,
+        payable_amount: payableAmount,
+        fine_duration: fineDuration || duration,
+        total_amount: totalAmount,
+        total_with_interest: totalWithInterest,
         fine_before_installment: fineBeforeInstallment,
     };
 
@@ -142,22 +142,22 @@ async function processHostelPayment({
     selectedInstallmentIds = null, selectedInstallments = null, clientIp
 }) {
     const payload = {
-        hostel_oid:                    orderId,
-        student_id:                    studentId,
-        hostel_fees:                   hostelFees,
-        hostel_fine:                   hostelFine,
-        fine_days:                     fineDays,
-        fine_per_day:                  finePerDay,
-        remaningCurrent:               remainingCurrent, // Note: PHP typo preserved
-        total_current_payable:         totalCurrentPayable || amount,
-        current_paid_fees:             currentPaidFees,
-        instalment_opt_status_hostel:  instalmentOptStatus,
-        allotment_log_id:              allotmentLogId,
-        stud_mobile_hos:               studMobile,
-        stud_email_id_hos:             studEmail,
-        ip_address:                    clientIp,
-        selected_installment_ids:      selectedInstallmentIds,
-        selected_installments:         selectedInstallments,
+        hostel_oid: orderId,
+        student_id: studentId,
+        hostel_fees: hostelFees,
+        hostel_fine: hostelFine,
+        fine_days: fineDays,
+        fine_per_day: finePerDay,
+        remaningCurrent: remainingCurrent, // Note: PHP typo preserved
+        total_current_payable: totalCurrentPayable || amount,
+        current_paid_fees: currentPaidFees,
+        instalment_opt_status_hostel: instalmentOptStatus,
+        allotment_log_id: allotmentLogId,
+        stud_mobile_hos: studMobile,
+        stud_email_id_hos: studEmail,
+        ip_address: clientIp,
+        selected_installment_ids: selectedInstallmentIds,
+        selected_installments: selectedInstallments,
     };
 
     logger.info(`[Billdesk] Sending HOSTEL ${instalmentOptStatus === 1 ? 'INSTALLMENT' : 'FULL'} payment to PHP`);
@@ -175,21 +175,21 @@ async function processTransportPayment({
     selectedInstallmentIds = null, selectedInstallments = null, clientIp
 }) {
     const payload = {
-        transport_oid:                      orderId,
-        student_id:                         studentId,
-        transport_fees:                     transportFees,
-        transport_fine:                     transportFine,
-        fine_days:                          fineDays,
-        fine_per_day:                       finePerDay,
-        remaningCurrent:                    remainingCurrent, // Note: PHP typo preserved
-        total_current_payable:              totalCurrentPayable || amount,
-        current_paid_fees:                  currentPaidFees,
-        instalment_opt_status_transport:    instalmentOptStatus || 0,
-        stud_mobile_trans:                  studMobile,
-        stud_email_id_trans:                studEmail,
-        ip_address:                         clientIp,
-        selected_installment_ids:           selectedInstallmentIds,
-        selected_installments:              selectedInstallments,
+        transport_oid: orderId,
+        student_id: studentId,
+        transport_fees: transportFees,
+        transport_fine: transportFine,
+        fine_days: fineDays,
+        fine_per_day: finePerDay,
+        remaningCurrent: remainingCurrent, // Note: PHP typo preserved
+        total_current_payable: totalCurrentPayable || amount,
+        current_paid_fees: currentPaidFees,
+        instalment_opt_status_transport: instalmentOptStatus || 0,
+        stud_mobile_trans: studMobile,
+        stud_email_id_trans: studEmail,
+        ip_address: clientIp,
+        selected_installment_ids: selectedInstallmentIds,
+        selected_installments: selectedInstallments,
     };
 
     logger.info(`[Billdesk] Sending TRANSPORT ${instalmentOptStatus === 1 ? 'INSTALLMENT' : 'FULL'} payment to PHP`);
@@ -203,11 +203,11 @@ async function processTransportPayment({
 async function processLibraryPayment({ orderId, amount, studentId, fineAmt, semId, clientIp }) {
     const payload = {
         library_oid: orderId,
-        student_id:  studentId,
+        student_id: studentId,
         amount,
         library_fine: fineAmt,
-        sem_id:       semId,
-        ip_address:   clientIp
+        sem_id: semId,
+        ip_address: clientIp
     };
 
     logger.info(`[Billdesk] Sending LIBRARY payment to PHP`);
@@ -220,14 +220,14 @@ async function processLibraryPayment({ orderId, amount, studentId, fineAmt, semI
 
 async function processGymPayment({ orderId, amount, studentId, subscriptionId, subscriptionType, subscriptionAmount, semId, clientIp }) {
     const payload = {
-        order_id:            orderId,
-        stud_id:             studentId,
+        order_id: orderId,
+        stud_id: studentId,
         amount,
-        subcription_id:      subscriptionId, // Note: PHP typo preserved
-        subscription_type:   subscriptionType,
+        subcription_id: subscriptionId, // Note: PHP typo preserved
+        subscription_type: subscriptionType,
         subscription_amount: subscriptionAmount,
-        sem_id:              semId,
-        ip_address:          clientIp
+        sem_id: semId,
+        ip_address: clientIp
     };
 
     logger.info(`[Billdesk] Sending GYM payment to PHP`);
@@ -240,11 +240,11 @@ async function processGymPayment({ orderId, amount, studentId, subscriptionId, s
 
 async function processSchoolPayment({ orderId, amount, studentId, fineDetails, feesDetails, semId, clientIp }) {
     const payload = {
-        school_oid:   orderId,
-        student_id:   studentId,
+        school_oid: orderId,
+        student_id: studentId,
         amount,
-        sem_id:       semId,
-        ip_address:   clientIp,
+        sem_id: semId,
+        ip_address: clientIp,
         fine_details: fineDetails,
         fees_details: feesDetails
     };
@@ -252,6 +252,28 @@ async function processSchoolPayment({ orderId, amount, studentId, fineDetails, f
     logger.info(`[Billdesk] Sending SCHOOL payment to PHP`);
 
     return axios.post(`${PHP_API_URL}/school_payment_begin.php`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000
+    });
+}
+
+async function processAdditionalFeesPayment({
+    orderId, amount, studentId, semId, feeType, additionalFeeAmount,
+    fineAmt = 0, totalFine = null, duration = 0, multiplier = 0,
+    fineType = '', fineAppliedOn = null, remainingDueDate = '', scholarshipAmt = 0,
+}) {
+    const payload = {
+        orderId, amount, studentId, semId,
+        feeType, additionalFeeAmount,
+        fineAmt, totalFine: totalFine ?? fineAmt,
+        duration, multiplier, fineType,
+        fineAppliedOn: fineAppliedOn ?? feeType,
+        remainingDueDate, scholarshipAmt,
+    };
+
+    logger.info(`[Billdesk] Sending ADDITIONAL FEE payment to PHP`);
+
+    return axios.post(`${PHP_API_URL}/billdesk_additional_fee_transaction.php`, payload, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 30000
     });
@@ -273,7 +295,13 @@ async function createOrder(req, res) {
             installment_id, installment_no, applied_inst_id, payable_amount,
             fine_duration, total_amount, total_with_interest, fine_before_installment,
             student_id: reqStudentId,
+
+            // Additional Fees (Added later)
+            additionalFeeAmount, feeType, totalFine, duration, multiplier,
+            fineType, fineAppliedOn, remainingDueDate, scholarshipAmt,
         } = req.body;
+
+        console.log("REQ BODY", req.body);
 
         const studentId = req.user.user_id || reqStudentId;
 
@@ -307,8 +335,8 @@ async function createOrder(req, res) {
         }
 
         const { short_name } = college;
-        const clientIp      = getClientIp(req);
-        const deviceInfo    = { ...device, ip: clientIp };
+        const clientIp = getClientIp(req);
+        const deviceInfo = { ...device, ip: clientIp };
 
         const orderId = installment_id
             ? generateOrderId(short_name, paymentType, studentId) + 'I' + installment_id
@@ -321,7 +349,6 @@ async function createOrder(req, res) {
 
         switch (paymentType) {
             case 1: // Academic (regular or installment)
-            case 8: // Additional Fees 
                 phpResponse = await processAcademicPayment({
                     orderId, amount, studentId, fineDetails, feesDetails,
                     semId: semId || sem_year_id, clientIp,
@@ -341,7 +368,7 @@ async function createOrder(req, res) {
                     instalmentOptStatus: instalmentOptStatus || 0,
                     allotmentLogId,
                     studMobile: studMobile || stud_mobile,
-                    studEmail:  studEmail  || stud_email_id,
+                    studEmail: studEmail || stud_email_id,
                     selectedInstallmentIds, selectedInstallments, clientIp
                 });
                 break;
@@ -357,7 +384,7 @@ async function createOrder(req, res) {
                     currentPaidFees: currentPaidFees || 0,
                     instalmentOptStatus: instalmentOptStatus || 0,
                     studMobile: studMobile || stud_mobile,
-                    studEmail:  studEmail  || stud_email_id,
+                    studEmail: studEmail || stud_email_id,
                     selectedInstallmentIds, selectedInstallments, clientIp
                 });
                 break;
@@ -381,6 +408,15 @@ async function createOrder(req, res) {
                 });
                 break;
 
+            case 8: // Additional Fees
+                phpResponse = await processAdditionalFeesPayment({
+                    orderId, amount, studentId, semId: semId || sem_year_id,
+                    feeType, additionalFeeAmount,
+                    fineAmt, totalFine, duration, multiplier, fineType, fineAppliedOn,
+                    remainingDueDate, scholarshipAmt
+                });
+                break;
+
             default:
                 return sendError(res, `Unsupported payment type: ${paymentType}`, 400);
         }
@@ -391,11 +427,11 @@ async function createOrder(req, res) {
             return sendError(res, phpResponse.data.message || 'Failed to create transaction records', 400);
         }
 
-        const phpData     = phpResponse.data.data || phpResponse.data;
-        const studName    = phpData.studName    || phpData.stud_name    || stud_name;
-        const phpStudMobile = phpData.studMobile  || phpData.stud_mobile  || stud_mobile;
-        const phpStudEmail  = phpData.studEmail   || phpData.stud_email   || phpData.stud_email_id || stud_email_id;
-        const clgShortName  = phpData.clgShortName || phpData.clg_short_name || short_name;
+        const phpData = phpResponse.data.data || phpResponse.data;
+        const studName = phpData.studName || phpData.stud_name || stud_name;
+        const phpStudMobile = phpData.studMobile || phpData.stud_mobile || stud_mobile;
+        const phpStudEmail = phpData.studEmail || phpData.stud_email || phpData.stud_email_id || stud_email_id;
+        const clgShortName = phpData.clgShortName || phpData.clg_short_name || short_name;
 
         const orderDate = new Date().toLocaleString('sv-SE', {
             timeZone: 'Asia/Kolkata',
@@ -404,39 +440,39 @@ async function createOrder(req, res) {
             hour12: false
         }).replace(' ', 'T') + '+05:30';
 
-        const bdTimestamp  = getBDTimestamp();
-        const bdTraceId    = generateBDTraceId();
+        const bdTimestamp = getBDTimestamp();
+        const bdTraceId = generateBDTraceId();
         const bdTraceIdNew = generateBDTraceIdNew();
 
-        const customerName  = studName || stud_name;
-        const nameParts     = customerName.trim().split(' ');
-        const customer      = {
+        const customerName = studName || stud_name;
+        const nameParts = customerName.trim().split(' ');
+        const customer = {
             first_name: nameParts[0],
-            last_name:  nameParts.at(-1),
-            mobile:     phpStudMobile || stud_mobile,
-            email:      phpStudEmail  || stud_email_id,
+            last_name: nameParts.at(-1),
+            mobile: phpStudMobile || stud_mobile,
+            email: phpStudEmail || stud_email_id,
         };
 
         const customer_refid = generateCustomerRefId(customer.first_name, stud_roll_no);
 
         const orderPayloadNew = {
-            mercid:          MERCHANT_ID,
+            mercid: MERCHANT_ID,
             amount,
-            order_ref_no:    orderId,
+            order_ref_no: orderId,
             ecom_order_date: orderDate,
-            ru:              'https://myrungta.com:8080/api/student/billdesk/payment-callback',
-            currency:        '356',
-            itemcode:        'DIRECT',
+            ru: 'https://myrungta.com:8080/api/student/billdesk/payment-callback',
+            currency: '356',
+            itemcode: 'DIRECT',
             customer,
-            device:          deviceInfo,
+            device: deviceInfo,
             split_payment: [{
-                mercid:           childMerchantId,
+                mercid: childMerchantId,
                 amount,
                 customer_refid,
                 additional_info1: customerName,
                 additional_info2: stud_roll_no,
                 additional_info3: phpStudMobile || stud_mobile,
-                additional_info4: phpStudEmail  || stud_email_id,
+                additional_info4: phpStudEmail || stud_email_id,
             }]
         };
 
@@ -448,8 +484,8 @@ async function createOrder(req, res) {
             {
                 headers: {
                     'Content-Type': 'application/jose',
-                    'Accept':       'application/jose',
-                    'BD-Traceid':   bdTraceIdNew,
+                    'Accept': 'application/jose',
+                    'BD-Traceid': bdTraceIdNew,
                     'BD-Timestamp': bdTimestamp
                 }
             }
@@ -472,19 +508,19 @@ async function createOrder(req, res) {
         }
 
         const orderPayload = {
-            mercid:     MERCHANT_ID,
-            orderid:    TraceId,
+            mercid: MERCHANT_ID,
+            orderid: TraceId,
             amount,
             order_date: orderDate,
-            currency:   '356',
-            ru:         'https://myrungta.com:8080/api/student/billdesk/payment-callback',
-            itemcode:   'DIRECT',
-            device:     deviceInfo,
+            currency: '356',
+            ru: 'https://myrungta.com:8080/api/student/billdesk/payment-callback',
+            itemcode: 'DIRECT',
+            device: deviceInfo,
             additional_info: {
                 additional_info1: customerName,
                 additional_info2: stud_roll_no,
                 additional_info3: phpStudMobile || stud_mobile,
-                additional_info4: phpStudEmail  || stud_email_id,
+                additional_info4: phpStudEmail || stud_email_id,
             },
         };
 
@@ -496,8 +532,8 @@ async function createOrder(req, res) {
             {
                 headers: {
                     'Content-Type': 'application/jose',
-                    'Accept':       'application/jose',
-                    'BD-Traceid':   bdTraceId,
+                    'Accept': 'application/jose',
+                    'BD-Traceid': bdTraceId,
                     'BD-Timestamp': bdTimestamp
                 }
             }
@@ -510,8 +546,8 @@ async function createOrder(req, res) {
             orderId,
             bdOrderId: decryptedResponse.bdorderid,
             redirect: {
-                url:           redirectLink.href,
-                parameters:    redirectLink.parameters,
+                url: redirectLink.href,
+                parameters: redirectLink.parameters,
                 authorization: redirectLink.headers.authorization
             }
         }, "Order created successfully", 200);
@@ -564,15 +600,15 @@ async function handleCallback(req, res) {
         const decryptedResponse = await verifyAndDecrypt(jwsToken, config);
 
         const {
-            orderid:                orderId,
-            amount:                 txnAmt,
-            transactionid:          txnId,
-            transaction_date:       txnDate,
-            mercid:                 merchantId,
-            auth_status:            authStatus,
-            payment_method_type:    paymentMode,
+            orderid: orderId,
+            amount: txnAmt,
+            transactionid: txnId,
+            transaction_date: txnDate,
+            mercid: merchantId,
+            auth_status: authStatus,
+            payment_method_type: paymentMode,
             transaction_error_type: txnErrorType,
-            bankid:                 bankTxnId
+            bankid: bankTxnId
         } = decryptedResponse;
 
         logger.info(`[Billdesk] Callback for order: ${orderId}, authStatus: ${authStatus}`);
@@ -591,12 +627,12 @@ async function handleCallback(req, res) {
         // Determine payment type from order ID prefix
         let paymentTypeCode = 'ACA';
         if (orderId) {
-            if      (orderId.includes('HOS')) paymentTypeCode = 'HOS';
+            if (orderId.includes('HOS')) paymentTypeCode = 'HOS';
             else if (orderId.includes('TRA')) paymentTypeCode = 'TRA';
             else if (orderId.includes('LIB')) paymentTypeCode = 'LIB';
             else if (orderId.includes('GYM')) paymentTypeCode = 'GYM';
             else if (orderId.includes('SCH')) paymentTypeCode = 'SCH';
-            else if (orderId.includes('ADD')) paymentTypeCode = 'ACA'; 
+            else if (orderId.includes('ADD')) paymentTypeCode = 'ACA';
             else if (orderId.includes('ACA')) paymentTypeCode = 'ACA';
         }
 
@@ -614,17 +650,17 @@ async function handleCallback(req, res) {
 
         const phpPayload = {
             orderId,
-            studentId:      '',
+            studentId: '',
             childMerchantId: '',
-            txnAmount:      txnAmt      || 0,
-            txnId:          txnId       || '',
-            txnDate:        formattedTxnDate,
-            merchantId:     merchantId  || '',
+            txnAmount: txnAmt || 0,
+            txnId: txnId || '',
+            txnDate: formattedTxnDate,
+            merchantId: merchantId || '',
             authStatus,
-            paymentMode:    paymentMode || 'UPI',
-            bankTxnId:      bankTxnId   || '',
-            ipAddress:      clientIp,
-            status:         authStatus === '0300' ? 'SUCCESS' : 'FAILED',
+            paymentMode: paymentMode || 'UPI',
+            bankTxnId: bankTxnId || '',
+            ipAddress: clientIp,
+            status: authStatus === '0300' ? 'SUCCESS' : 'FAILED',
             billdeskResponse: decryptedResponse
         };
 
@@ -688,15 +724,15 @@ async function getPaymentStatus(req, res) {
         }
 
         let status = 'PENDING';
-        if      (transaction.flag === 1) status = 'SUCCESS';
+        if (transaction.flag === 1) status = 'SUCCESS';
         else if (transaction.flag === 0) status = 'FAILED';
 
         return sendSuccess(res, {
-            orderId:  transaction.order_id,
-            amount:   transaction.tot_amt,
+            orderId: transaction.order_id,
+            amount: transaction.tot_amt,
             status,
-            txnId:    transaction.txn_id   || null,
-            txnDate:  transaction.txn_date  || null
+            txnId: transaction.txn_id || null,
+            txnDate: transaction.txn_date || null
         }, "Payment status retrieved successfully", 200);
 
     } catch (error) {
