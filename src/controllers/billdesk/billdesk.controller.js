@@ -669,6 +669,10 @@ async function handleCallback(req, res) {
             timeout: 60000
         });
 
+        console.log("call back url", callbackUrl);
+        console.log("php payload", phpPayload);
+        console.log("php response", phpResponse);
+
         if (!phpResponse.data.success) {
             logger.error(`[Billdesk] PHP callback failed: ${phpResponse.data.message}`);
             return res.redirect(
