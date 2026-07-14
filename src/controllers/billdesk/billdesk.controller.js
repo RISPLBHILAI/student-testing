@@ -273,7 +273,7 @@ async function processAdditionalFeesPayment({
 
     logger.info(`[Billdesk] Sending ADDITIONAL FEE payment to PHP`);
 
-    return axios.post(`${PHP_API_URL}/billdesk_additional_fee_transaction.php`, payload, {
+    return axios.post(`${PHP_API_URL}/additional_fee_begin.php`, payload, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 30000
     });
