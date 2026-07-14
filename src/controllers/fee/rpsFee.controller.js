@@ -106,11 +106,12 @@ async function getMonthlyFeesDetails(req, res) {
         let isFineCalculated = 0;
 
         const result = [];
+        let firstUnpaidIndex = -1;
 
-        for (const row of rows) {
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
             const rowTotalAmount = parseFloat(row.amount) || 0;
             const rowPaidAmount = parseFloat(row.paid_amount) || 0;
-            const remainingAmount = Math.round((rowTotalAmount - rowPaidAmount) * 100) / 100;
 
             const dueDate = new Date(row.due_date);
             dueDate.setHours(0, 0, 0, 0);
@@ -124,7 +125,9 @@ async function getMonthlyFeesDetails(req, res) {
             let finePaidAmount = 0;
             let fineDays = 0;
 
-            if (isFineApplicable === 1 && isFineCalculated === 0 && remainingAmount > 1) {
+            const principalRemaining = Math.round((rowTotalAmount - rowPaidAmount) * 100) / 100;
+
+            if (isFineApplicable === 1 && isFineCalculated === 0 && principalRemaining > 1) {
                 fineAmount = parseInt(row.fine_amount) || 20;
 
                 if (today > dueDate) {
@@ -164,6 +167,25 @@ async function getMonthlyFeesDetails(req, res) {
                 }
             }
 
+            let remainingAmount = Math.max(
+                0,
+                Math.round(
+                    (Math.max(0, rowTotalAmount - rowPaidAmount) + fineAmount - finePaidAmount) * 100
+                ) / 100
+            );
+
+            // Treat anything under ₹1 as fully paid — avoids showing stray
+            // paise/rounding remainders as an outstanding balance.
+            if (remainingAmount < 1) {
+                remainingAmount = 0;
+            }
+
+            const isPaid = remainingAmount === 0;
+
+            if (!isPaid && firstUnpaidIndex === -1) {
+                firstUnpaidIndex = i;
+            }
+
             result.push({
                 ...row,
                 isDueDatePassed,
@@ -171,18 +193,44 @@ async function getMonthlyFeesDetails(req, res) {
                 fine_amount: fineAmount,
                 fine_days: fineDays,
                 fine_paid_amount: finePaidAmount,
+                remaining_amount: remainingAmount,
+                is_paid: isPaid,
             });
         }
 
+        // ── Paid Details (transaction history) ──────────────────────────────
+        // Mirrors the legacy `acadStudId` branch of rps_get_all_fees_paid_details.php:
+        // scoped to this student's current clg/cor/branch, excludes pending/failed,
+        // newest first.
+        const [paidDetailRows] = await db.query(
+            `SELECT id, order_id, txn_amt, txn_date, status
+             FROM fee_payment_transaction_done
+             WHERE stud_id = ?
+               AND clg_id = ?
+               AND cor_id = ?
+               AND branch_id = ?
+               AND status != 'pending'
+               AND status != 'failed'
+             ORDER BY id DESC`,
+            [studentId, clg_id, cor_id, branch_id]
+        );
+
         logger.info(`[Fees] Monthly fee details fetched for student: ${studentId}`);
 
-        return sendSuccess(res, { fees: result }, 'Monthly fee details fetched successfully');
+        return sendSuccess(
+            res,
+            {
+                fees: result,
+                first_unpaid_index: firstUnpaidIndex,
+                paidDetails: paidDetailRows,
+            },
+            'Monthly fee details fetched successfully'
+        );
 
     } catch (err) {
         logger.error(`[Fees] getMonthlyFeesDetails error: ${err.message}`);
         return sendError(res, 'Failed to fetch monthly fee details', 500);
     }
 }
-
 
 module.exports = { getBaseFees, getMonthlyFeesDetails };
