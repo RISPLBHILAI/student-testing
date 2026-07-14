@@ -5,7 +5,8 @@ const PAYMENT_TYPE_CODES = {
     4: 'RPS',
     5: 'LIB',
     6: 'BREAKFAST',
-    7: 'GYM'
+    7: 'GYM',
+    8: 'ADD'
 };
 
 const getBDTimestamp = () => {

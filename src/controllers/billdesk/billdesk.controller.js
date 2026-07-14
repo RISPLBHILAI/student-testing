@@ -45,6 +45,7 @@ function getChildMerchantId(paymentType, collegeShortName) {
     switch (paymentType) {
         case 1: // Academic
         case 5: // Library
+        case 8: // Additional Fees
             if (COLLEGE_MERCHANT_IDS[shortName]) {
                 logger.info(`[Billdesk] Using COLLEGE merchant for ${shortName} (Type ${paymentType})`);
                 return COLLEGE_MERCHANT_IDS[shortName];
@@ -320,6 +321,7 @@ async function createOrder(req, res) {
 
         switch (paymentType) {
             case 1: // Academic (regular or installment)
+            case 8: // Additional Fees 
                 phpResponse = await processAcademicPayment({
                     orderId, amount, studentId, fineDetails, feesDetails,
                     semId: semId || sem_year_id, clientIp,
@@ -594,6 +596,7 @@ async function handleCallback(req, res) {
             else if (orderId.includes('LIB')) paymentTypeCode = 'LIB';
             else if (orderId.includes('GYM')) paymentTypeCode = 'GYM';
             else if (orderId.includes('SCH')) paymentTypeCode = 'SCH';
+            else if (orderId.includes('ADD')) paymentTypeCode = 'ACA'; 
             else if (orderId.includes('ACA')) paymentTypeCode = 'ACA';
         }
 
