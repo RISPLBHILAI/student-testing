@@ -113,8 +113,9 @@ async function getMonthlyFeesDetails(req, res) {
             const rowTotalAmount = parseFloat(row.amount) || 0;
             const rowPaidAmount = parseFloat(row.paid_amount) || 0;
 
-            const dueDate = new Date(row.due_date);
-            dueDate.setHours(0, 0, 0, 0);
+            // const dueDate = new Date(row.due_date);
+            // dueDate.setHours(0, 0, 0, 0);
+            const dueDate = row.due_date;
 
             if (today > dueDate) isDueDatePassed = 1;
             if (rowPaidAmount > 0) isAnyPaymentDone = 1;
