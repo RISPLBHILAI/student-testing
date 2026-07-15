@@ -1061,6 +1061,106 @@ class PaymentModel {
             throw error;
         }
     }
+
+    // PaymentModel.js — read-only, mirrors get_month_wise_payment() logic exactly
+    static async getRpsFeeSplit(studId, clgId, corId, branchId, semYearId, selectedMonths) {
+        const today = new Date();
+
+        const [[{ all_tution_fee_count }]] = await db.query(
+            `SELECT COUNT(DISTINCT due_date) AS all_tution_fee_count
+         FROM rps_student_fees_structure
+         WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND fee_type_id=5`,
+            [studId, clgId, corId, branchId]
+        );
+        const isDiscountOnTuition = all_tution_fee_count > 0 && selectedMonths.length === all_tution_fee_count;
+
+        const [discRows] = await db.query(
+            `SELECT id FROM rps_student_fees_structure
+         WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND sem_id=? AND discount_id != 0`,
+            [studId, clgId, corId, branchId, semYearId]
+        );
+        const hasAlreadyDiscountApplied = discRows.length > 0;
+
+        const [[firstDueRow]] = await db.query(
+            `SELECT due_date FROM rps_student_fees_structure
+         WHERE stud_id=? AND fee_type_id=5 ORDER BY due_date ASC LIMIT 1`,
+            [studId]
+        );
+        const isDiscountApplicableAfterFirstDueDate = !(new Date(firstDueRow?.due_date) >= today);
+
+        const [paidRows] = await db.query(
+            `SELECT id FROM rps_student_fees_structure
+         WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND paid_amount > 0`,
+            [studId, clgId, corId, branchId]
+        );
+        const hasAnyPaymentDone = paidRows.length > 0;
+
+        const deadline = new Date(`${today.getFullYear()}-06-10`);
+        let CMSirDiscountOnTution = today < deadline && Number(corId) === 55;
+        if (hasAnyPaymentDone) CMSirDiscountOnTution = false;
+
+        let academicFee = 0, hostelFee = 0, transportFee = 0, totalFine = 0;
+
+        for (const { due_on, month_year } of selectedMonths) {
+            const dueDate = new Date(due_on).toISOString().slice(0, 10);
+
+            const [rows] = await db.query(
+                `SELECT s.*, fm.q1_fine AS fine_amount
+             FROM rps_student_fees_structure s
+             LEFT JOIN fine_master fm ON fm.clg_id=s.clg_id AND fm.cor_id=s.cor_id
+               AND fm.branch_id=s.branch_id AND s.sem_id=fm.sem_id
+             WHERE s.due_date=? AND s.month_year=? AND s.stud_id=? AND s.clg_id=?
+               AND s.cor_id=? AND s.branch_id=? AND s.sem_id=?
+               AND s.total_amount != s.paid_amount AND s.total_amount > 0
+             GROUP BY s.id ORDER BY s.fee_type_id ASC`,
+                [dueDate, month_year, studId, clgId, corId, branchId, semYearId]
+            );
+
+            let monthlyFine = 0;
+
+            for (const row of rows) {
+                const feeTypeId = Number(row.fee_type_id);
+                const total = parseFloat(row.total_amount);
+                const paid = parseFloat(row.paid_amount);
+                const remainingRaw = Math.round((total - paid) * 100) / 100;
+
+                if (row.is_fine_applicable == 1 && feeTypeId === 5 && totalFine < 1 &&
+                    remainingRaw > 1 && !CMSirDiscountOnTution) {
+                    const dueDateObj = new Date(dueDate);
+                    if (today > dueDateObj) {
+                        const fineDays = Math.floor((today - dueDateObj) / 86400000);
+                        monthlyFine = parseFloat(row.fine_amount || 0) * fineDays;
+                    }
+                }
+
+                const remainingAmount = Math.ceil(total - paid);
+                if (remainingAmount <= 0) continue;
+
+                let payable;
+                if (isDiscountOnTuition && feeTypeId === 5 && !hasAlreadyDiscountApplied &&
+                    (isDiscountApplicableAfterFirstDueDate || CMSirDiscountOnTution) &&
+                    totalFine < 1 && monthlyFine < 1) {
+                    const discount = Math.round(remainingAmount * 0.05 * 100) / 100;
+                    payable = Math.round((remainingAmount - discount) * 100) / 100;
+                } else {
+                    payable = remainingAmount;
+                }
+
+                if (feeTypeId === 27 || feeTypeId === 29) hostelFee += payable;
+                else if (feeTypeId === 28) transportFee += payable;
+                else academicFee += payable;
+            }
+
+            totalFine += monthlyFine;
+            academicFee += monthlyFine;
+        }
+
+        academicFee = Math.ceil(academicFee);
+        hostelFee = Math.ceil(hostelFee);
+        transportFee = Math.ceil(transportFee);
+
+        return { academicFee, hostelFee, transportFee, totalFine, totalPayable: academicFee + hostelFee + transportFee };
+    }
 }
 
 module.exports = PaymentModel;

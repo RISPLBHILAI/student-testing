@@ -195,6 +195,7 @@ async function getMonthlyFeesDetails(req, res) {
                 fine_paid_amount: finePaidAmount,
                 remaining_amount: remainingAmount,
                 is_paid: isPaid,
+                has_fine: fineAmount > 0,
             });
         }
 

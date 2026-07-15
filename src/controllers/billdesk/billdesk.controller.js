@@ -238,20 +238,28 @@ async function processGymPayment({ orderId, amount, studentId, subscriptionId, s
     });
 }
 
-async function processSchoolPayment({ orderId, amount, studentId, fineDetails, feesDetails, semId, clientIp }) {
+async function processSchoolPayment({
+    orderId, amount, studentId, academicFee, hostelFee, transportFee,
+    totalMonthsPay, selectedMonths, totalFine, clientIp
+}) {
     const payload = {
-        school_oid: orderId,
-        student_id: studentId,
+        orderId,
+        studentId,
         amount,
-        sem_id: semId,
-        ip_address: clientIp,
-        fine_details: fineDetails,
-        fees_details: feesDetails
+        academicFee,
+        hostelFee,
+        transportFee,
+        total_months_pay: totalMonthsPay,
+        selectedMonths,
+        total_fine: totalFine,
+        ip_address: clientIp
     };
 
     logger.info(`[Billdesk] Sending SCHOOL payment to PHP`);
 
-    return axios.post(`${PHP_API_URL}/school_payment_begin.php`, payload, {
+    console.log("payload", payload);
+
+    return axios.post(`${PHP_API_URL}/rps_all_fees_begin.php`, payload, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 30000
     });
@@ -299,6 +307,9 @@ async function createOrder(req, res) {
             // Additional Fees (Added later)
             additionalFeeAmount, feeType, totalFine, duration, multiplier,
             fineType, fineAppliedOn, remainingDueDate, scholarshipAmt,
+
+            // RPS School (Added later)
+            selectedMonths, total_months_pay,
         } = req.body;
 
         console.log("REQ BODY", req.body);
@@ -389,11 +400,31 @@ async function createOrder(req, res) {
                 });
                 break;
 
-            case 4: // School
+            case 4: {
+                const feeSplit = await PaymentModel.getRpsFeeSplit(
+                    studentId, clg_id, cor_id, branch_id, sem_year_id, selectedMonths
+                );
+
+                console.log("feeSplit", feeSplit);
+
+                if (!selectedMonths || !Array.isArray(selectedMonths) || selectedMonths.length === 0) {
+                    return sendError(res, 'selectedMonths is required for school payment', 400);
+                }
+
+                var { academicFee, hostelFee, transportFee, totalFine: rpsTotalFine, totalPayable } = feeSplit; // ← renamed
+
                 phpResponse = await processSchoolPayment({
-                    orderId, amount, studentId, fineDetails, feesDetails, semId, clientIp
+                    orderId, studentId, amount: totalPayable,
+                    academicFee, hostelFee, transportFee,
+                    totalMonthsPay: total_months_pay,
+                    selectedMonths,
+                    totalFine: rpsTotalFine,
+                    clientIp
                 });
+
+                console.log("phpResponse", phpResponse);
                 break;
+            }
 
             case 5: // Library
                 phpResponse = await processLibraryPayment({
@@ -455,17 +486,45 @@ async function createOrder(req, res) {
 
         const customer_refid = generateCustomerRefId(customer.first_name, stud_roll_no);
 
-        const orderPayloadNew = {
-            mercid: MERCHANT_ID,
-            amount,
-            order_ref_no: orderId,
-            ecom_order_date: orderDate,
-            ru: 'https://myrungta.com:8080/api/student/billdesk/payment-callback',
-            currency: '356',
-            itemcode: 'DIRECT',
-            customer,
-            device: deviceInfo,
-            split_payment: [{
+        let splitPayment;
+
+        if (paymentType === 4) {
+            splitPayment = [];
+            if (academicFee > 0) {
+                splitPayment.push({
+                    mercid: getChildMerchantId(4, short_name),
+                    amount: academicFee,
+                    customer_refid: generateCustomerRefId(customer.first_name, stud_roll_no) + '_ACA',
+                    additional_info1: customerName,
+                    additional_info2: stud_roll_no,
+                    additional_info3: phpStudMobile || stud_mobile,
+                    additional_info4: phpStudEmail || stud_email_id,
+                });
+            }
+            if (hostelFee > 0) {
+                splitPayment.push({
+                    mercid: MERCHANT_ID_HOS,
+                    amount: hostelFee,
+                    customer_refid: generateCustomerRefId(customer.first_name, stud_roll_no) + '_HOS',
+                    additional_info1: customerName,
+                    additional_info2: stud_roll_no,
+                    additional_info3: phpStudMobile || stud_mobile,
+                    additional_info4: phpStudEmail || stud_email_id,
+                });
+            }
+            if (transportFee > 0) {
+                splitPayment.push({
+                    mercid: MERCHANT_ID_TRA,
+                    amount: transportFee,
+                    customer_refid: generateCustomerRefId(customer.first_name, stud_roll_no) + '_TRA',
+                    additional_info1: customerName,
+                    additional_info2: stud_roll_no,
+                    additional_info3: phpStudMobile || stud_mobile,
+                    additional_info4: phpStudEmail || stud_email_id,
+                });
+            }
+        } else {
+            splitPayment = [{
                 mercid: childMerchantId,
                 amount,
                 customer_refid,
@@ -473,7 +532,20 @@ async function createOrder(req, res) {
                 additional_info2: stud_roll_no,
                 additional_info3: phpStudMobile || stud_mobile,
                 additional_info4: phpStudEmail || stud_email_id,
-            }]
+            }];
+        }
+
+        const orderPayloadNew = {
+            mercid: MERCHANT_ID,
+            amount: paymentType === 4 ? totalPayable : amount,
+            order_ref_no: orderId,
+            ecom_order_date: orderDate,
+            ru: 'https://myrungta.com:8080/api/student/billdesk/payment-callback',
+            currency: '356',
+            itemcode: 'DIRECT',
+            customer,
+            device: deviceInfo,
+            split_payment: splitPayment
         };
 
         const encryptedPayloadNew = await encryptAndSign(orderPayloadNew, config);
@@ -510,7 +582,7 @@ async function createOrder(req, res) {
         const orderPayload = {
             mercid: MERCHANT_ID,
             orderid: TraceId,
-            amount,
+            amount: paymentType === 4 ? totalPayable : amount,
             order_date: orderDate,
             currency: '356',
             ru: 'https://myrungta.com:8080/api/student/billdesk/payment-callback',
