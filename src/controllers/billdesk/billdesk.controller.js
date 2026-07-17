@@ -401,28 +401,28 @@ async function createOrder(req, res) {
                 break;
 
             case 4: {
-                const feeSplit = await PaymentModel.getRpsFeeSplit(
-                    studentId, clg_id, cor_id, branch_id, sem_year_id, selectedMonths
-                );
-
-                console.log("feeSplit", feeSplit);
-
                 if (!selectedMonths || !Array.isArray(selectedMonths) || selectedMonths.length === 0) {
                     return sendError(res, 'selectedMonths is required for school payment', 400);
                 }
 
-                var { academicFee, hostelFee, transportFee, totalFine: rpsTotalFine, totalPayable } = feeSplit; // ← renamed
-
-                phpResponse = await processSchoolPayment({
-                    orderId, studentId, amount: totalPayable,
-                    academicFee, hostelFee, transportFee,
-                    totalMonthsPay: total_months_pay,
+                const prepareResp = await axios.post(`${PHP_API_URL}/rps_prepare_payment.php`, {
+                    action: 'prepare_payment',
+                    orderId,
+                    studentId,
                     selectedMonths,
-                    totalFine: rpsTotalFine,
-                    clientIp
-                });
+                    ipAddress: clientIp
+                }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
 
-                console.log("phpResponse", phpResponse);
+                if (!prepareResp.data.success) {
+                    return sendError(res, prepareResp.data.message || 'Failed to prepare RPS payment', 400);
+                }
+
+                const prep = prepareResp.data.data;
+
+                var { academicFee, hostelFee, transportFee, totalFine: rpsTotalFine, amount: totalPayable } = prep;
+
+                // student/college fields already present in prep — reuse instead of re-fetching
+                phpResponse = prepareResp; // treat prepare as the "begin" call
                 break;
             }
 

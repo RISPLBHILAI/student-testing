@@ -1146,7 +1146,7 @@ WHERE
                 stud_name, stud_mobile, stud_roll_no, university_roll_no,
                 stud_email_id, stud_fathername, stud_father_mobno,
                 sem_year_id, admission_year, admis_on_sem_year_id,
-                clg_id, cor_id, branch_id, admission_incharge, atten_nonatten_priv,branch_name,cor_name,clg_name
+                clg_id, cor_id, branch_id, admission_incharge, atten_nonatten_priv, branch_name, cor_name, clg_name
             } = studentData;
 
             const studData = {
@@ -1166,7 +1166,7 @@ WHERE
                 branch_id,
                 admission_incharge,
                 atten_nonatten_priv,
-                branch_name,cor_name,clg_name
+                branch_name, cor_name, clg_name
             };
 
             // Get applicable fees
@@ -1295,10 +1295,10 @@ WHERE
 
                         if (greaterDate === todayDate) {
                             let fineData;
-                            if (clg_id !== '5' && clg_id !== 5 && clg_id !== '6' && clg_id !== 6) {
+                            if (clg_id !== '8' && clg_id !== 8) {
                                 fineData = this.calculateFine(25, academicDueDate, greaterDate, 'tution_fee');
                             } else {
-                                fineData = this.calculateFineRcstRism(academicDueDate, greaterDate, 'tution_fee');
+                                fineData = this.calculateFine(10, academicDueDate, greaterDate, 'tution_fee');
                             }
 
                             academicApplicableFine = fineData.total_fine;
@@ -1327,9 +1327,7 @@ WHERE
 
                     if (greaterDate === lastAcademicPaidDate && greaterDate !== academicDueDateNew) {
                         let fineData;
-                        if (clg_id === 5 || clg_id === '5' || clg_id === 6 || clg_id === '6') {
-                            fineData = this.calculateFineRcstRism(academicDueDateNew, lastAcademicPaidDate, 'tution_fee');
-                        } else if (clg_id === '8' || clg_id === 8) {
+                        if (clg_id === '8' || clg_id === 8) {
                             fineData = this.calculateFine(10, academicDueDateNew, lastAcademicPaidDate, 'tution_fee');
                         } else {
                             fineData = this.calculateFine(25, academicDueDateNew, lastAcademicPaidDate, 'tution_fee');
@@ -1377,10 +1375,10 @@ WHERE
                         if (today === greaterDate) {
                             if (finalDueDate === academicDueDate) {
                                 let fineData;
-                                if (clg_id !== '5' && clg_id !== 5 && clg_id !== '6' && clg_id !== 6) {
+                                if (clg_id !== '8' && clg_id !== 8) {
                                     fineData = this.calculateFine(25, finalDueDate, greaterDate, 'tution_fee');
                                 } else {
-                                    fineData = this.calculateFineRcstRism(finalDueDate, greaterDate, 'tution_fee');
+                                    fineData = this.calculateFine(10, finalDueDate, greaterDate, 'tution_fee');
                                 }
                                 academicApplicableFine = fineData.total_fine;
                                 academicFee += academicApplicableFine;
@@ -1945,7 +1943,7 @@ WHERE
             const gym_details = this.getGymDetails(studId);
             // const gym_details = false;
 
-            if (gym_details){
+            if (gym_details) {
                 return gym_details;
             } else {
                 const [hostelResult] = await db.query(
@@ -2002,7 +2000,7 @@ WHERE
 
             if (!gymResult || gymResult.length === 0) {
                 return [];
-            } else  {
+            } else {
                 return gymResult;
             }
 
