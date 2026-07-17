@@ -401,6 +401,8 @@ async function createOrder(req, res) {
                 phpResponse = await processSchoolPayment({
                     orderId, studentId, selectedMonths, clientIp
                 });
+
+                console.log("🧑‍🎓 phpResponse", phpResponse);
                 break;
             }
 
