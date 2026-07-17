@@ -405,7 +405,7 @@ async function createOrder(req, res) {
                     return sendError(res, 'selectedMonths is required for school payment', 400);
                 }
 
-                const prepareResp = await axios.post(`${PHP_API_URL}/rps_prepare_payment.php`, {
+                const prepareResp = await axios.post(`${PHP_API_URL}/rps_all_fees_begin.php`, {
                     action: 'prepare_payment',
                     orderId,
                     studentId,
