@@ -114,12 +114,11 @@ async function getMonthlyFeesDetails(req, res) {
             const rowTotalAmount = parseFloat(row.amount) || 0;
             const rowPaidAmount = parseFloat(row.paid_amount) || 0;
 
-            // const dueDate = new Date(row.due_date);
-            // dueDate.setHours(0, 0, 0, 0);
-            const dueDate = row.due_date;
+            const dueDate = row.due_date;                              // string, e.g. "2026-04-30" — kept for output
+            const dueDateObj = new Date(`${row.due_date}T00:00:00`);   // Date, local midnight — used for all comparisons/math
             const monthYear = row.month_year;
 
-            if (today > dueDate) isDueDatePassed = 1;
+            if (today > dueDateObj) isDueDatePassed = 1;
             if (rowPaidAmount > 0) isAnyPaymentDone = 1;
 
             const isFineApplicable = parseInt(row.is_fine_applicable) || 0;
@@ -133,9 +132,9 @@ async function getMonthlyFeesDetails(req, res) {
             if (isFineApplicable === 1 && isFineCalculated === 0 && principalRemaining > 1) {
                 fineAmount = parseInt(row.fine_amount) || 20;
 
-                if (today > dueDate) {
+                if (today > dueDateObj) {
                     isFineCalculated = 1;
-                    fineDays = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                    fineDays = Math.floor((today - dueDateObj) / (1000 * 60 * 60 * 24));
                     fineAmount = Math.round(fineAmount * fineDays * 100) / 100;
                 } else {
                     fineAmount = 0;
@@ -165,7 +164,7 @@ async function getMonthlyFeesDetails(req, res) {
 
                         const paidDate = new Date(finePaidRow.paid_date);
                         paidDate.setHours(0, 0, 0, 0);
-                        fineDays = Math.floor((paidDate - dueDate) / (1000 * 60 * 60 * 24));
+                        fineDays = Math.floor((paidDate - dueDateObj) / (1000 * 60 * 60 * 24));
                     }
                 }
             }
@@ -191,12 +190,8 @@ async function getMonthlyFeesDetails(req, res) {
 
             result.push({
                 ...row,
-                due_date: dueDate instanceof Date
-                    ? dueDate.toISOString().slice(0, 10)
-                    : dueDate,
-                month_year: monthYear instanceof Date
-                    ? monthYear.toISOString().slice(0, 7)
-                    : monthYear,
+                due_date: dueDate,
+                month_year: monthYear,
                 isDueDatePassed,
                 isAnyPaymentDone,
                 fine_amount: fineAmount,
