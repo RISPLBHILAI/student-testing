@@ -402,7 +402,7 @@ async function createOrder(req, res) {
                     orderId, studentId, selectedMonths, clientIp
                 });
 
-                console.log("🧑‍🎓 phpResponse", phpResponse);
+                console.log("🧑‍🎓 phpResponse", phpResponse.data);
                 break;
             }
 
@@ -569,6 +569,8 @@ async function createOrder(req, res) {
             { traceId: TraceId, orderId },
             { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
         );
+
+        console.log("🧑‍🎓 updateTraceId", updateTraceId.data);
 
         if (updateTraceId.data.success === false) {
             logger.error(`[Billdesk] Failed to update TraceId in PHP for order: ${orderId}`);
