@@ -568,7 +568,7 @@ async function createOrder(req, res) {
             `${PHP_API_URL}/udpate_trace_id.php`,
             { traceId: TraceId, orderId },
             { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
-        );
+        ).catch(error => console.log("🧑‍🎓 updateTraceId",error));
 
         console.log("🧑‍🎓 updateTraceId", updateTraceId.data);
 
