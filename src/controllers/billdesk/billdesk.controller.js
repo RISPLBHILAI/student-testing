@@ -441,6 +441,7 @@ async function createOrder(req, res) {
         const phpStudMobile = phpData.studMobile || phpData.stud_mobile || stud_mobile;
         const phpStudEmail = phpData.studEmail || phpData.stud_email || phpData.stud_email_id || stud_email_id;
         const clgShortName = phpData.clgShortName || phpData.clg_short_name || short_name;
+        const studRollNo = phpData.studRollNo || phpData.stud_roll_no || stud_roll_no;
 
         // School-specific fields (undefined for other types, harmless)
         const academicFee = phpData.academicFee;
@@ -477,7 +478,7 @@ async function createOrder(req, res) {
             email: phpStudEmail || stud_email_id,
         };
 
-        const customer_refid = generateCustomerRefId(customer.first_name, stud_roll_no);
+        const customer_refid = generateCustomerRefId(customer.first_name, studRollNo );
 
         let splitPayment;
 
@@ -487,9 +488,9 @@ async function createOrder(req, res) {
                 splitPayment.push({
                     mercid: getChildMerchantId(4, short_name),
                     amount: academicFee,
-                    customer_refid: generateCustomerRefId(customer.first_name, stud_roll_no) + '_ACA',
+                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo ) + '_ACA',
                     additional_info1: customerName,
-                    additional_info2: stud_roll_no,
+                    additional_info2: studRollNo ,
                     additional_info3: phpStudMobile || stud_mobile,
                     additional_info4: phpStudEmail || stud_email_id,
                 });
@@ -498,9 +499,9 @@ async function createOrder(req, res) {
                 splitPayment.push({
                     mercid: MERCHANT_ID_HOS,
                     amount: hostelFee,
-                    customer_refid: generateCustomerRefId(customer.first_name, stud_roll_no) + '_HOS',
+                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo ) + '_HOS',
                     additional_info1: customerName,
-                    additional_info2: stud_roll_no,
+                    additional_info2: studRollNo ,
                     additional_info3: phpStudMobile || stud_mobile,
                     additional_info4: phpStudEmail || stud_email_id,
                 });
@@ -509,9 +510,9 @@ async function createOrder(req, res) {
                 splitPayment.push({
                     mercid: MERCHANT_ID_TRA,
                     amount: transportFee,
-                    customer_refid: generateCustomerRefId(customer.first_name, stud_roll_no) + '_TRA',
+                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo ) + '_TRA',
                     additional_info1: customerName,
-                    additional_info2: stud_roll_no,
+                    additional_info2: studRollNo ,
                     additional_info3: phpStudMobile || stud_mobile,
                     additional_info4: phpStudEmail || stud_email_id,
                 });
@@ -522,7 +523,7 @@ async function createOrder(req, res) {
                 amount,
                 customer_refid,
                 additional_info1: customerName,
-                additional_info2: stud_roll_no,
+                additional_info2: studRollNo ,
                 additional_info3: phpStudMobile || stud_mobile,
                 additional_info4: phpStudEmail || stud_email_id,
             }];
@@ -583,7 +584,7 @@ async function createOrder(req, res) {
             device: deviceInfo,
             additional_info: {
                 additional_info1: customerName,
-                additional_info2: stud_roll_no,
+                additional_info2: studRollNo ,
                 additional_info3: phpStudMobile || stud_mobile,
                 additional_info4: phpStudEmail || stud_email_id,
             },
