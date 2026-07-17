@@ -72,6 +72,7 @@ async function getMonthlyFeesDetails(req, res) {
                 SUM(rps_student_fees_structure.total_amount) AS amount,
                 SUM(rps_student_fees_structure.paid_amount) AS paid_amount,
                 rps_student_fees_structure.due_date,
+                rps_student_fees_structure.month_year,
                 rps_student_fees_structure.is_fine_applicable,
                 fine_master.q1_fine AS fine_amount
              FROM rps_student_fees_structure
@@ -116,6 +117,7 @@ async function getMonthlyFeesDetails(req, res) {
             // const dueDate = new Date(row.due_date);
             // dueDate.setHours(0, 0, 0, 0);
             const dueDate = row.due_date;
+            const monthYear = row.month_year;
 
             if (today > dueDate) isDueDatePassed = 1;
             if (rowPaidAmount > 0) isAnyPaymentDone = 1;
@@ -189,6 +191,10 @@ async function getMonthlyFeesDetails(req, res) {
 
             result.push({
                 ...row,
+                due_date: dueDate instanceof Date
+                    ? dueDate.toISOString().slice(0, 10)
+                    : dueDate,
+                month_year: monthYear,
                 isDueDatePassed,
                 isAnyPaymentDone,
                 fine_amount: fineAmount,
