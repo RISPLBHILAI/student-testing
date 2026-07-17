@@ -238,26 +238,19 @@ async function processGymPayment({ orderId, amount, studentId, subscriptionId, s
     });
 }
 
-async function processSchoolPayment({
-    orderId, amount, studentId, academicFee, hostelFee, transportFee,
-    totalMonthsPay, selectedMonths, totalFine, clientIp
-}) {
+async function processSchoolPayment({ orderId, studentId, selectedMonths, clientIp }) {
     const payload = {
+        action: 'prepare_payment',
         orderId,
         studentId,
-        amount,
-        academicFee,
-        hostelFee,
-        transportFee,
-        total_months_pay: totalMonthsPay,
         selectedMonths,
-        total_fine: totalFine,
-        ip_address: clientIp
+        ipAddress: clientIp
     };
 
-    logger.info(`[Billdesk] Sending SCHOOL payment to PHP`);
+    logger.info(`[Billdesk] Sending SCHOOL prepare payment to PHP`);
 
-    console.log("payload", payload);
+    console.log('🧑‍🎓 Sending SCHOOL prepare payment to PHP');
+    console.log(`${PHP_API_URL}/rps_all_fees_begin.php`, payload);
 
     return axios.post(`${PHP_API_URL}/rps_all_fees_begin.php`, payload, {
         headers: { 'Content-Type': 'application/json' },
@@ -405,24 +398,9 @@ async function createOrder(req, res) {
                     return sendError(res, 'selectedMonths is required for school payment', 400);
                 }
 
-                const prepareResp = await axios.post(`${PHP_API_URL}/rps_all_fees_begin.php`, {
-                    action: 'prepare_payment',
-                    orderId,
-                    studentId,
-                    selectedMonths,
-                    ipAddress: clientIp
-                }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
-
-                if (!prepareResp.data.success) {
-                    return sendError(res, prepareResp.data.message || 'Failed to prepare RPS payment', 400);
-                }
-
-                const prep = prepareResp.data.data;
-
-                var { academicFee, hostelFee, transportFee, totalFine: rpsTotalFine, amount: totalPayable } = prep;
-
-                // student/college fields already present in prep — reuse instead of re-fetching
-                phpResponse = prepareResp; // treat prepare as the "begin" call
+                phpResponse = await processSchoolPayment({
+                    orderId, studentId, selectedMonths, clientIp
+                });
                 break;
             }
 
@@ -463,6 +441,21 @@ async function createOrder(req, res) {
         const phpStudMobile = phpData.studMobile || phpData.stud_mobile || stud_mobile;
         const phpStudEmail = phpData.studEmail || phpData.stud_email || phpData.stud_email_id || stud_email_id;
         const clgShortName = phpData.clgShortName || phpData.clg_short_name || short_name;
+
+        // School-specific fields (undefined for other types, harmless)
+        const academicFee = phpData.academicFee;
+        const hostelFee = phpData.hostelFee;
+        const transportFee = phpData.transportFee;
+        const rpsTotalFine = phpData.totalFine;
+        const totalPayable = phpData.amount;
+
+        if (paymentType === 4 && phpData.paymentCompleted) {
+            return sendError(res, 'Payment already completed for this order', 400);
+        }
+
+        if (paymentType === 4 && phpData.alreadyPrepared) {
+            logger.info(`[Billdesk] RPS payment already prepared for order: ${orderId}`);
+        }
 
         const orderDate = new Date().toLocaleString('sv-SE', {
             timeZone: 'Asia/Kolkata',
