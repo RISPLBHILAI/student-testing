@@ -480,7 +480,7 @@ async function createOrder(req, res) {
             email: phpStudEmail || stud_email_id,
         };
 
-        const customer_refid = generateCustomerRefId(customer.first_name, studRollNo );
+        const customer_refid = generateCustomerRefId(customer.first_name, studRollNo);
 
         let splitPayment;
 
@@ -490,9 +490,9 @@ async function createOrder(req, res) {
                 splitPayment.push({
                     mercid: getChildMerchantId(4, short_name),
                     amount: academicFee,
-                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo ) + '_ACA',
+                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo) + '_ACA',
                     additional_info1: customerName,
-                    additional_info2: studRollNo ,
+                    additional_info2: studRollNo,
                     additional_info3: phpStudMobile || stud_mobile,
                     additional_info4: phpStudEmail || stud_email_id,
                 });
@@ -501,9 +501,9 @@ async function createOrder(req, res) {
                 splitPayment.push({
                     mercid: MERCHANT_ID_HOS,
                     amount: hostelFee,
-                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo ) + '_HOS',
+                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo) + '_HOS',
                     additional_info1: customerName,
-                    additional_info2: studRollNo ,
+                    additional_info2: studRollNo,
                     additional_info3: phpStudMobile || stud_mobile,
                     additional_info4: phpStudEmail || stud_email_id,
                 });
@@ -512,9 +512,9 @@ async function createOrder(req, res) {
                 splitPayment.push({
                     mercid: MERCHANT_ID_TRA,
                     amount: transportFee,
-                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo ) + '_TRA',
+                    customer_refid: generateCustomerRefId(customer.first_name, studRollNo) + '_TRA',
                     additional_info1: customerName,
-                    additional_info2: studRollNo ,
+                    additional_info2: studRollNo,
                     additional_info3: phpStudMobile || stud_mobile,
                     additional_info4: phpStudEmail || stud_email_id,
                 });
@@ -525,7 +525,7 @@ async function createOrder(req, res) {
                 amount,
                 customer_refid,
                 additional_info1: customerName,
-                additional_info2: studRollNo ,
+                additional_info2: studRollNo,
                 additional_info3: phpStudMobile || stud_mobile,
                 additional_info4: phpStudEmail || stud_email_id,
             }];
@@ -564,15 +564,19 @@ async function createOrder(req, res) {
 
         logger.info(`[Billdesk] ecom orderid (TraceId): ${TraceId}`);
 
-        const updateTraceId = await axios.post(
+
+        const updateTraceIdResult = await axios.post(
             `${PHP_API_URL}/udpate_trace_id.php`,
             { traceId: TraceId, orderId },
             { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
-        ).catch(error => console.log("🧑‍🎓 updateTraceId",error));
+        ).catch(error => {
+            logger.error(`[Billdesk] updateTraceId request failed: ${error.message}`);
+            return null; // don't swallow into an unusable value
+        });
 
-        console.log("🧑‍🎓 updateTraceId", updateTraceId.data);
+        console.log("🧑‍🎓 updateTraceIdResult", updateTraceIdResult.data);
 
-        if (updateTraceId.data.success === false) {
+        if (!updateTraceIdResult || updateTraceIdResult.data?.success === false) {
             logger.error(`[Billdesk] Failed to update TraceId in PHP for order: ${orderId}`);
             return sendError(res, 'Failed to update transaction trace ID', 400);
         }
@@ -588,7 +592,7 @@ async function createOrder(req, res) {
             device: deviceInfo,
             additional_info: {
                 additional_info1: customerName,
-                additional_info2: studRollNo ,
+                additional_info2: studRollNo,
                 additional_info3: phpStudMobile || stud_mobile,
                 additional_info4: phpStudEmail || stud_email_id,
             },
@@ -670,7 +674,7 @@ async function handleCallback(req, res) {
         const decryptedResponse = await verifyAndDecrypt(jwsToken, config);
 
         const {
-            orderid: orderId,
+            orderid: bdTraceId,
             amount: txnAmt,
             transactionid: txnId,
             transaction_date: txnDate,
@@ -680,6 +684,20 @@ async function handleCallback(req, res) {
             transaction_error_type: txnErrorType,
             bankid: bankTxnId
         } = decryptedResponse;
+
+        let orderId = null;
+        try {
+            orderId = await PaymentModel.getOrderIdByTraceId(bdTraceId);
+        } catch (lookupErr) {
+            logger.error(`[Billdesk] Failed to resolve orderId for trace ${bdTraceId}: ${lookupErr.message}`);
+        }
+
+        if (!orderId) {
+            // Fallback: shouldn't normally happen, but don't silently misroute — log loudly and
+            // fall back to the raw value so at least something reaches a callback script.
+            logger.error(`[Billdesk] Could not resolve orderId for trace ${bdTraceId} — falling back to raw value`);
+            orderId = bdTraceId;
+        }
 
         logger.info(`[Billdesk] Callback for order: ${orderId}, authStatus: ${authStatus}`);
 
@@ -741,7 +759,7 @@ async function handleCallback(req, res) {
 
         console.log("call back url", callbackUrl);
         console.log("php payload", phpPayload);
-        console.log("php response", phpResponse);
+        console.log("php response", phpResponse.data);
 
         if (!phpResponse.data.success) {
             logger.error(`[Billdesk] PHP callback failed: ${phpResponse.data.message}`);

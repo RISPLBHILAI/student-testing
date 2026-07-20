@@ -1062,6 +1062,14 @@ class PaymentModel {
         }
     }
 
+    static async getOrderIdByTraceId(traceId) {
+        const [rows] = await pool.query(
+            'SELECT order_id FROM fee_payment_transaction_begin WHERE trace_id = ? LIMIT 1',
+            [traceId]
+        );
+        return rows[0]?.order_id || null;
+    }
+
     // PaymentModel.js — read-only, mirrors get_month_wise_payment() logic exactly
     // static async getRpsFeeSplit(studId, clgId, corId, branchId, semYearId, selectedMonths) {
     //     const today = new Date();
