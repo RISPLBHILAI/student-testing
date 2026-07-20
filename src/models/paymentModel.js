@@ -1063,7 +1063,7 @@ class PaymentModel {
     }
 
     static async getOrderIdByTraceId(traceId) {
-        const [rows] = await pool.query(
+        const [rows] = await db.query(
             'SELECT order_id FROM fee_payment_transaction_begin WHERE trace_id = ? LIMIT 1',
             [traceId]
         );
