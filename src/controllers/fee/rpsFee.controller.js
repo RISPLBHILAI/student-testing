@@ -107,8 +107,8 @@ async function getMonthlyFeesDetails(req, res) {
        AND rps_student_fees_structure.cor_id = ?
        AND rps_student_fees_structure.branch_id = ?
        AND rps_student_fees_structure.sem_id = ?
-     GROUP BY rps_student_fees_structure.due_date
-     ORDER BY rps_student_fees_structure.due_date ASC`,
+     GROUP BY rps_student_fees_structure.month_year
+     ORDER BY rps_student_fees_structure.month_year ASC`,
             [studentId, clg_id, cor_id, branch_id, sem_year_id]
         );
 

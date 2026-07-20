@@ -711,7 +711,7 @@ async function handleCallback(req, res) {
             TRA: `${PHP_API_URL}/transport_callback.php`,
             LIB: `${PHP_API_URL}/library_callback.php`,
             GYM: `${PHP_API_URL}/gym_callback.php`,
-            SCH: `${PHP_API_URL}/school_callback.php`,
+            SCH: `${PHP_API_URL}/rps_callback.php`,
             ACA: `${PHP_API_URL}/academic_callback.php`,
         };
 
