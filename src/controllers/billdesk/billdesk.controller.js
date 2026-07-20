@@ -701,7 +701,7 @@ async function handleCallback(req, res) {
             else if (orderId.includes('TRA')) paymentTypeCode = 'TRA';
             else if (orderId.includes('LIB')) paymentTypeCode = 'LIB';
             else if (orderId.includes('GYM')) paymentTypeCode = 'GYM';
-            else if (orderId.includes('SCH')) paymentTypeCode = 'SCH';
+            else if (orderId.includes('RPS')) paymentTypeCode = 'RPS';
             else if (orderId.includes('ADD')) paymentTypeCode = 'ACA';
             else if (orderId.includes('ACA')) paymentTypeCode = 'ACA';
         }
@@ -711,7 +711,7 @@ async function handleCallback(req, res) {
             TRA: `${PHP_API_URL}/transport_callback.php`,
             LIB: `${PHP_API_URL}/library_callback.php`,
             GYM: `${PHP_API_URL}/gym_callback.php`,
-            SCH: `${PHP_API_URL}/rps_callback.php`,
+            RPS: `${PHP_API_URL}/rps_callback.php`,
             ACA: `${PHP_API_URL}/academic_callback.php`,
         };
 
