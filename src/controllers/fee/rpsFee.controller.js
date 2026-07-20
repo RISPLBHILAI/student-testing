@@ -273,7 +273,19 @@ async function getMonthlyFeesDetails(req, res) {
             })
         );
 
-        const paidDetailRowsWithType = paidDetailRowsExpanded.flat();
+        const flatRows = paidDetailRowsExpanded.flat();
+
+        // ── Attach breakdown (all types under same order_id) to every row ──────────
+        const breakdownByOrderId = {};
+        for (const r of flatRows) {
+            if (!breakdownByOrderId[r.order_id]) breakdownByOrderId[r.order_id] = [];
+            breakdownByOrderId[r.order_id].push({ type: r.payment_type, paid_amt: r.paid_amt });
+        }
+
+        const paidDetailRowsWithType = flatRows.map((r) => ({
+            ...r,
+            payment_types: breakdownByOrderId[r.order_id],
+        }));
 
 
         logger.info(`[Fees] Monthly fee details fetched for student: ${studentId}`);
