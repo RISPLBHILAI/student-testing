@@ -10,11 +10,13 @@ async function getBaseFees(req, res) {
 
         const [studentRows] = await db.query(
             `SELECT
+                stud.stud_name,
+                stud.stud_mobile,
                 base.clg_id,
                 base.cor_id,
                 base.branch_id,
                 base.sem_year_id,
-                clg.short_name,
+                clg.clg_name,
                 cor.cor_name,
                 bra.branch_sub_name
             FROM
@@ -22,8 +24,9 @@ async function getBaseFees(req, res) {
                 LEFT JOIN tblcollege AS clg ON clg.id = base.clg_id
                 LEFT JOIN tblcourse AS cor ON cor.id = base.cor_id
                 LEFT JOIN tblbranch_subject AS bra ON bra.id = base.branch_id
+                LEFT JOIN tblstud_profile AS stud ON stud.id = base.stud_id
             WHERE
-                stud_id = ? AND current_status = 1;`,
+                stud_id = ? AND base.current_status = 1;`,
             [studentId]
         );
 
@@ -71,7 +74,7 @@ async function getMonthlyFeesDetails(req, res) {
         logger.info(`[Fees] Fetching monthly fee details for student: ${studentId}`);
 
         const [studentRows] = await db.query(
-            `SELECT * FROM stud_current_sem_year WHERE stud_id = ? AND current_status = 1`,
+            `SELECT clg_id, cor_id, branch_id, sem_year_id FROM stud_current_sem_year WHERE stud_id = ? AND current_status = 1`,
             [studentId]
         );
 
@@ -234,6 +237,38 @@ async function getMonthlyFeesDetails(req, res) {
             [studentId, clg_id, cor_id, branch_id]
         );
 
+        // ── Tag each transaction with its payment type ───────────────────────
+        const paidDetailRowsWithType = await Promise.all(
+            paidDetailRows.map(async (row) => {
+                const [scholarshipRows] = await db.query(
+                    `SELECT paid_amt FROM fee_payment_transaction_scholarship_details WHERE order_id = ? AND payment_status = '1'`,
+                    [row.order_id]
+                );
+                if (scholarshipRows.length > 0) {
+                    return { ...row, payment_type: 'Academic', paid_amt: scholarshipRows[0].paid_amt };
+                }
+
+                const [transportRows] = await db.query(
+                    `SELECT total_paid_fees FROM transport_payment_tran_details WHERE order_id = ?`,
+                    [row.order_id]
+                );
+                if (transportRows.length > 0) {
+                    return { ...row, payment_type: 'Transport', paid_amt: transportRows[0].total_paid_fees };
+                }
+
+                const [hostelRows] = await db.query(
+                    `SELECT total_paid_fees FROM fee_payment_transaction_hostel_details WHERE order_id = ?`,
+                    [row.order_id]
+                );
+                if (hostelRows.length > 0) {
+                    return { ...row, payment_type: 'Hostel' , paid_amt: hostelRows[0].total_paid_fees };
+                }
+
+                return { ...row, payment_type: 'Academic', paid_amt: row.txn_amt };
+            })
+        );
+
+
         logger.info(`[Fees] Monthly fee details fetched for student: ${studentId}`);
 
         return sendSuccess(
@@ -241,7 +276,7 @@ async function getMonthlyFeesDetails(req, res) {
             {
                 fees: result,
                 first_unpaid_index: firstUnpaidIndex,
-                paidDetails: paidDetailRows,
+                paidDetails: paidDetailRowsWithType,
             },
             'Monthly fee details fetched successfully'
         );

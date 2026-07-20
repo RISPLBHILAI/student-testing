@@ -1063,144 +1063,144 @@ class PaymentModel {
     }
 
     // PaymentModel.js — read-only, mirrors get_month_wise_payment() logic exactly
-    static async getRpsFeeSplit(studId, clgId, corId, branchId, semYearId, selectedMonths) {
-        const today = new Date();
+    // static async getRpsFeeSplit(studId, clgId, corId, branchId, semYearId, selectedMonths) {
+    //     const today = new Date();
 
-        console.log('[RPS FeeSplit] INPUT →', { studId, clgId, corId, branchId, semYearId, selectedMonths });
+    //     console.log('[RPS FeeSplit] INPUT →', { studId, clgId, corId, branchId, semYearId, selectedMonths });
 
-        const [[{ all_tution_fee_count }]] = await db.query(
-            `SELECT COUNT(DISTINCT due_date) AS all_tution_fee_count
-     FROM rps_student_fees_structure
-     WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND fee_type_id=5`,
-            [studId, clgId, corId, branchId]
-        );
-        console.log('[RPS FeeSplit] Q1 all_tution_fee_count →', all_tution_fee_count, '| params:', [studId, clgId, corId, branchId]);
+    //     const [[{ all_tution_fee_count }]] = await db.query(
+    //         `SELECT COUNT(DISTINCT due_date) AS all_tution_fee_count
+    //  FROM rps_student_fees_structure
+    //  WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND fee_type_id=5`,
+    //         [studId, clgId, corId, branchId]
+    //     );
+    //     console.log('[RPS FeeSplit] Q1 all_tution_fee_count →', all_tution_fee_count, '| params:', [studId, clgId, corId, branchId]);
 
-        const isDiscountOnTuition = all_tution_fee_count > 0 && selectedMonths.length === all_tution_fee_count;
-        console.log('[RPS FeeSplit] isDiscountOnTuition →', isDiscountOnTuition, `(selectedMonths.length=${selectedMonths.length})`);
+    //     const isDiscountOnTuition = all_tution_fee_count > 0 && selectedMonths.length === all_tution_fee_count;
+    //     console.log('[RPS FeeSplit] isDiscountOnTuition →', isDiscountOnTuition, `(selectedMonths.length=${selectedMonths.length})`);
 
-        const [discRows] = await db.query(
-            `SELECT id FROM rps_student_fees_structure
-     WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND sem_id=? AND discount_id != 0`,
-            [studId, clgId, corId, branchId, semYearId]
-        );
-        console.log('[RPS FeeSplit] Q2 discRows →', discRows.length, 'rows | params:', [studId, clgId, corId, branchId, semYearId]);
+    //     const [discRows] = await db.query(
+    //         `SELECT id FROM rps_student_fees_structure
+    //  WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND sem_id=? AND discount_id != 0`,
+    //         [studId, clgId, corId, branchId, semYearId]
+    //     );
+    //     console.log('[RPS FeeSplit] Q2 discRows →', discRows.length, 'rows | params:', [studId, clgId, corId, branchId, semYearId]);
 
-        const hasAlreadyDiscountApplied = discRows.length > 0;
-        console.log('[RPS FeeSplit] hasAlreadyDiscountApplied →', hasAlreadyDiscountApplied);
+    //     const hasAlreadyDiscountApplied = discRows.length > 0;
+    //     console.log('[RPS FeeSplit] hasAlreadyDiscountApplied →', hasAlreadyDiscountApplied);
 
-        const [[firstDueRow]] = await db.query(
-            `SELECT due_date FROM rps_student_fees_structure
-     WHERE stud_id=? AND fee_type_id=5 ORDER BY due_date ASC LIMIT 1`,
-            [studId]
-        );
-        console.log('[RPS FeeSplit] Q3 firstDueRow →', firstDueRow, '| params:', [studId]);
+    //     const [[firstDueRow]] = await db.query(
+    //         `SELECT due_date FROM rps_student_fees_structure
+    //  WHERE stud_id=? AND fee_type_id=5 ORDER BY due_date ASC LIMIT 1`,
+    //         [studId]
+    //     );
+    //     console.log('[RPS FeeSplit] Q3 firstDueRow →', firstDueRow, '| params:', [studId]);
 
-        const isDiscountApplicableAfterFirstDueDate = !(new Date(firstDueRow?.due_date) >= today);
-        console.log('[RPS FeeSplit] isDiscountApplicableAfterFirstDueDate →', isDiscountApplicableAfterFirstDueDate,
-            `(firstDueDate=${firstDueRow?.due_date}, today=${today.toISOString()})`);
+    //     const isDiscountApplicableAfterFirstDueDate = !(new Date(firstDueRow?.due_date) >= today);
+    //     console.log('[RPS FeeSplit] isDiscountApplicableAfterFirstDueDate →', isDiscountApplicableAfterFirstDueDate,
+    //         `(firstDueDate=${firstDueRow?.due_date}, today=${today.toISOString()})`);
 
-        const [paidRows] = await db.query(
-            `SELECT id FROM rps_student_fees_structure
-     WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND paid_amount > 0`,
-            [studId, clgId, corId, branchId]
-        );
-        console.log('[RPS FeeSplit] Q4 paidRows →', paidRows.length, 'rows | params:', [studId, clgId, corId, branchId]);
+    //     const [paidRows] = await db.query(
+    //         `SELECT id FROM rps_student_fees_structure
+    //  WHERE stud_id=? AND clg_id=? AND cor_id=? AND branch_id=? AND paid_amount > 0`,
+    //         [studId, clgId, corId, branchId]
+    //     );
+    //     console.log('[RPS FeeSplit] Q4 paidRows →', paidRows.length, 'rows | params:', [studId, clgId, corId, branchId]);
 
-        const hasAnyPaymentDone = paidRows.length > 0;
-        console.log('[RPS FeeSplit] hasAnyPaymentDone →', hasAnyPaymentDone);
+    //     const hasAnyPaymentDone = paidRows.length > 0;
+    //     console.log('[RPS FeeSplit] hasAnyPaymentDone →', hasAnyPaymentDone);
 
-        const deadline = new Date(`${today.getFullYear()}-06-10`);
-        let CMSirDiscountOnTution = today < deadline && Number(corId) === 55;
-        if (hasAnyPaymentDone) CMSirDiscountOnTution = false;
-        console.log('[RPS FeeSplit] CMSirDiscountOnTution →', CMSirDiscountOnTution, `(deadline=${deadline.toISOString()}, corId=${corId})`);
+    //     const deadline = new Date(`${today.getFullYear()}-06-10`);
+    //     let CMSirDiscountOnTution = today < deadline && Number(corId) === 55;
+    //     if (hasAnyPaymentDone) CMSirDiscountOnTution = false;
+    //     console.log('[RPS FeeSplit] CMSirDiscountOnTution →', CMSirDiscountOnTution, `(deadline=${deadline.toISOString()}, corId=${corId})`);
 
-        let academicFee = 0, hostelFee = 0, transportFee = 0, totalFine = 0;
+    //     let academicFee = 0, hostelFee = 0, transportFee = 0, totalFine = 0;
 
-        for (const { due_on, month_year } of selectedMonths) {
-            const dueDate = new Date(due_on).toISOString().slice(0, 10);
-            console.log(`[RPS FeeSplit] --- Processing month: due_on=${due_on} → dueDate=${dueDate}, month_year='${month_year}' ---`);
+    //     for (const { due_on, month_year } of selectedMonths) {
+    //         const dueDate = new Date(due_on).toISOString().slice(0, 10);
+    //         console.log(`[RPS FeeSplit] --- Processing month: due_on=${due_on} → dueDate=${dueDate}, month_year='${month_year}' ---`);
 
-            const [rows] = await db.query(
-                `SELECT s.*, fm.q1_fine AS fine_amount
-         FROM rps_student_fees_structure s
-         LEFT JOIN fine_master fm ON fm.clg_id=s.clg_id AND fm.cor_id=s.cor_id
-           AND fm.branch_id=s.branch_id AND s.sem_id=fm.sem_id
-         WHERE s.due_date=? AND s.month_year=? AND s.stud_id=? AND s.clg_id=?
-           AND s.cor_id=? AND s.branch_id=? AND s.sem_id=?
-           AND s.total_amount != s.paid_amount AND s.total_amount > 0
-         GROUP BY s.id ORDER BY s.fee_type_id ASC`,
-                [dueDate, month_year, studId, clgId, corId, branchId, semYearId]
-            );
-            console.log(`[RPS FeeSplit] Q5 rows for ${month_year} →`, rows.length, 'rows | params:',
-                [dueDate, month_year, studId, clgId, corId, branchId, semYearId]);
-            if (rows.length === 0) {
-                console.log(`[RPS FeeSplit] ⚠️  NO ROWS MATCHED for due_date='${dueDate}' month_year='${month_year}' — check format/timezone mismatch against DB`);
-            }
+    //         const [rows] = await db.query(
+    //             `SELECT s.*, fm.q1_fine AS fine_amount
+    //      FROM rps_student_fees_structure s
+    //      LEFT JOIN fine_master fm ON fm.clg_id=s.clg_id AND fm.cor_id=s.cor_id
+    //        AND fm.branch_id=s.branch_id AND s.sem_id=fm.sem_id
+    //      WHERE s.due_date=? AND s.month_year=? AND s.stud_id=? AND s.clg_id=?
+    //        AND s.cor_id=? AND s.branch_id=? AND s.sem_id=?
+    //        AND s.total_amount != s.paid_amount AND s.total_amount > 0
+    //      GROUP BY s.id ORDER BY s.fee_type_id ASC`,
+    //             [dueDate, month_year, studId, clgId, corId, branchId, semYearId]
+    //         );
+    //         console.log(`[RPS FeeSplit] Q5 rows for ${month_year} →`, rows.length, 'rows | params:',
+    //             [dueDate, month_year, studId, clgId, corId, branchId, semYearId]);
+    //         if (rows.length === 0) {
+    //             console.log(`[RPS FeeSplit] ⚠️  NO ROWS MATCHED for due_date='${dueDate}' month_year='${month_year}' — check format/timezone mismatch against DB`);
+    //         }
 
-            let monthlyFine = 0;
+    //         let monthlyFine = 0;
 
-            for (const row of rows) {
-                const feeTypeId = Number(row.fee_type_id);
-                const total = parseFloat(row.total_amount);
-                const paid = parseFloat(row.paid_amount);
-                const remainingRaw = Math.round((total - paid) * 100) / 100;
+    //         for (const row of rows) {
+    //             const feeTypeId = Number(row.fee_type_id);
+    //             const total = parseFloat(row.total_amount);
+    //             const paid = parseFloat(row.paid_amount);
+    //             const remainingRaw = Math.round((total - paid) * 100) / 100;
 
-                console.log(`[RPS FeeSplit]   row id=${row.id} fee_type_id=${feeTypeId} total=${total} paid=${paid} remainingRaw=${remainingRaw} is_fine_applicable=${row.is_fine_applicable} fine_amount=${row.fine_amount}`);
+    //             console.log(`[RPS FeeSplit]   row id=${row.id} fee_type_id=${feeTypeId} total=${total} paid=${paid} remainingRaw=${remainingRaw} is_fine_applicable=${row.is_fine_applicable} fine_amount=${row.fine_amount}`);
 
-                if (row.is_fine_applicable == 1 && feeTypeId === 5 && totalFine < 1 &&
-                    remainingRaw > 1 && !CMSirDiscountOnTution) {
-                    const dueDateObj = new Date(dueDate);
-                    if (today > dueDateObj) {
-                        const fineDays = Math.floor((today - dueDateObj) / 86400000);
-                        monthlyFine = parseFloat(row.fine_amount || 0) * fineDays;
-                        console.log(`[RPS FeeSplit]   → fine applies: fineDays=${fineDays}, monthlyFine=${monthlyFine}`);
-                    }
-                }
+    //             if (row.is_fine_applicable == 1 && feeTypeId === 5 && totalFine < 1 &&
+    //                 remainingRaw > 1 && !CMSirDiscountOnTution) {
+    //                 const dueDateObj = new Date(dueDate);
+    //                 if (today > dueDateObj) {
+    //                     const fineDays = Math.floor((today - dueDateObj) / 86400000);
+    //                     monthlyFine = parseFloat(row.fine_amount || 0) * fineDays;
+    //                     console.log(`[RPS FeeSplit]   → fine applies: fineDays=${fineDays}, monthlyFine=${monthlyFine}`);
+    //                 }
+    //             }
 
-                const remainingAmount = Math.ceil(total - paid);
-                if (remainingAmount <= 0) {
-                    console.log(`[RPS FeeSplit]   → skipped (remainingAmount=${remainingAmount} <= 0)`);
-                    continue;
-                }
+    //             const remainingAmount = Math.ceil(total - paid);
+    //             if (remainingAmount <= 0) {
+    //                 console.log(`[RPS FeeSplit]   → skipped (remainingAmount=${remainingAmount} <= 0)`);
+    //                 continue;
+    //             }
 
-                let payable;
-                if (isDiscountOnTuition && feeTypeId === 5 && !hasAlreadyDiscountApplied &&
-                    (isDiscountApplicableAfterFirstDueDate || CMSirDiscountOnTution) &&
-                    totalFine < 1 && monthlyFine < 1) {
-                    const discount = Math.round(remainingAmount * 0.05 * 100) / 100;
-                    payable = Math.round((remainingAmount - discount) * 100) / 100;
-                    console.log(`[RPS FeeSplit]   → discount applied: discount=${discount}, payable=${payable}`);
-                } else {
-                    payable = remainingAmount;
-                }
+    //             let payable;
+    //             if (isDiscountOnTuition && feeTypeId === 5 && !hasAlreadyDiscountApplied &&
+    //                 (isDiscountApplicableAfterFirstDueDate || CMSirDiscountOnTution) &&
+    //                 totalFine < 1 && monthlyFine < 1) {
+    //                 const discount = Math.round(remainingAmount * 0.05 * 100) / 100;
+    //                 payable = Math.round((remainingAmount - discount) * 100) / 100;
+    //                 console.log(`[RPS FeeSplit]   → discount applied: discount=${discount}, payable=${payable}`);
+    //             } else {
+    //                 payable = remainingAmount;
+    //             }
 
-                if (feeTypeId === 27 || feeTypeId === 29) {
-                    hostelFee += payable;
-                    console.log(`[RPS FeeSplit]   → added to hostelFee: +${payable} (running=${hostelFee})`);
-                } else if (feeTypeId === 28) {
-                    transportFee += payable;
-                    console.log(`[RPS FeeSplit]   → added to transportFee: +${payable} (running=${transportFee})`);
-                } else {
-                    academicFee += payable;
-                    console.log(`[RPS FeeSplit]   → added to academicFee: +${payable} (running=${academicFee})`);
-                }
-            }
+    //             if (feeTypeId === 27 || feeTypeId === 29) {
+    //                 hostelFee += payable;
+    //                 console.log(`[RPS FeeSplit]   → added to hostelFee: +${payable} (running=${hostelFee})`);
+    //             } else if (feeTypeId === 28) {
+    //                 transportFee += payable;
+    //                 console.log(`[RPS FeeSplit]   → added to transportFee: +${payable} (running=${transportFee})`);
+    //             } else {
+    //                 academicFee += payable;
+    //                 console.log(`[RPS FeeSplit]   → added to academicFee: +${payable} (running=${academicFee})`);
+    //             }
+    //         }
 
-            totalFine += monthlyFine;
-            academicFee += monthlyFine;
-            console.log(`[RPS FeeSplit] --- Month done: monthlyFine=${monthlyFine}, totalFine=${totalFine} ---`);
-        }
+    //         totalFine += monthlyFine;
+    //         academicFee += monthlyFine;
+    //         console.log(`[RPS FeeSplit] --- Month done: monthlyFine=${monthlyFine}, totalFine=${totalFine} ---`);
+    //     }
 
-        academicFee = Math.ceil(academicFee);
-        hostelFee = Math.ceil(hostelFee);
-        transportFee = Math.ceil(transportFee);
+    //     academicFee = Math.ceil(academicFee);
+    //     hostelFee = Math.ceil(hostelFee);
+    //     transportFee = Math.ceil(transportFee);
 
-        const result = { academicFee, hostelFee, transportFee, totalFine, totalPayable: academicFee + hostelFee + transportFee };
-        console.log('[RPS FeeSplit] FINAL RESULT →', result);
+    //     const result = { academicFee, hostelFee, transportFee, totalFine, totalPayable: academicFee + hostelFee + transportFee };
+    //     console.log('[RPS FeeSplit] FINAL RESULT →', result);
 
-        return result;
-    }
+    //     return result;
+    // }
 }
 
 module.exports = PaymentModel;
