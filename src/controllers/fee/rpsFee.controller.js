@@ -9,7 +9,21 @@ async function getBaseFees(req, res) {
         logger.info(`[Fees] Fetching base fees for student: ${studentId}`);
 
         const [studentRows] = await db.query(
-            `SELECT * FROM stud_current_sem_year WHERE stud_id = ? AND current_status = 1`,
+            `SELECT
+                base.clg_id,
+                base.cor_id,
+                base.branch_id,
+                base.sem_year_id,
+                clg.short_name,
+                cor.cor_name,
+                bra.branch_sub_name
+            FROM
+                stud_current_sem_year AS base
+                LEFT JOIN tblcollege AS clg ON clg.id = base.clg_id
+                LEFT JOIN tblcourse AS cor ON cor.id = base.cor_id
+                LEFT JOIN tblbranch_subject AS bra ON bra.id = base.branch_id
+            WHERE
+                stud_id = ? AND current_status = 1;`,
             [studentId]
         );
 
@@ -42,7 +56,7 @@ async function getBaseFees(req, res) {
 
         logger.info(`[Fees] Base fees fetched for student: ${studentId}`);
 
-        return sendSuccess(res, { fees: rows }, 'Fee structure fetched successfully');
+        return sendSuccess(res, { fees: rows, student: studentRows[0] }, 'Fee structure fetched successfully');
 
     } catch (err) {
         logger.error(`[Fees] getBaseFees error: ${err.message}`);
