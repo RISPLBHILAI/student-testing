@@ -237,6 +237,8 @@ async function getMonthlyFeesDetails(req, res) {
             [studentId, clg_id, cor_id, branch_id]
         );
 
+        console.log("paidDetailRows", paidDetailRows);
+
         // ── Tag each transaction with its payment type ───────────────────────
         const paidDetailRowsExpanded = await Promise.all(
             paidDetailRows.map(async (row) => {
