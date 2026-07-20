@@ -255,39 +255,27 @@ async function getMonthlyFeesDetails(req, res) {
                     [row.order_id]
                 );
 
-                const entries = [];
+                const payment_types = [];
 
                 if (scholarshipRows.length > 0) {
-                    entries.push({ ...row, payment_type: 'Academic', paid_amt: scholarshipRows[0].paid_amt });
+                    payment_types.push({ type: 'Academic', paid_amt: scholarshipRows[0].paid_amt });
                 }
                 if (transportRows.length > 0) {
-                    entries.push({ ...row, payment_type: 'Transport', paid_amt: transportRows[0].total_paid_fees });
+                    payment_types.push({ type: 'Transport', paid_amt: transportRows[0].total_paid_fees });
                 }
                 if (hostelRows.length > 0) {
-                    entries.push({ ...row, payment_type: 'Hostel', paid_amt: hostelRows[0].total_paid_fees });
+                    payment_types.push({ type: 'Hostel', paid_amt: hostelRows[0].total_paid_fees });
                 }
 
-                if (entries.length === 0) {
-                    entries.push({ ...row, payment_type: 'Academic', paid_amt: row.txn_amt });
+                if (payment_types.length === 0) {
+                    payment_types.push({ type: 'Academic', paid_amt: row.txn_amt });
                 }
 
-                return entries;
+                return { ...row, payment_types };
             })
         );
 
-        const flatRows = paidDetailRowsExpanded.flat();
-
-        // ── Attach breakdown (all types under same order_id) to every row ──────────
-        const breakdownByOrderId = {};
-        for (const r of flatRows) {
-            if (!breakdownByOrderId[r.order_id]) breakdownByOrderId[r.order_id] = [];
-            breakdownByOrderId[r.order_id].push({ type: r.payment_type, paid_amt: r.paid_amt });
-        }
-
-        const paidDetailRowsWithType = flatRows.map((r) => ({
-            ...r,
-            payment_types: breakdownByOrderId[r.order_id],
-        }));
+        const paidDetailRowsWithType = paidDetailRowsExpanded;
 
 
         logger.info(`[Fees] Monthly fee details fetched for student: ${studentId}`);
