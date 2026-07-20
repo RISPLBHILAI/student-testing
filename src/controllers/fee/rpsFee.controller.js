@@ -238,35 +238,42 @@ async function getMonthlyFeesDetails(req, res) {
         );
 
         // ── Tag each transaction with its payment type ───────────────────────
-        const paidDetailRowsWithType = await Promise.all(
+        const paidDetailRowsExpanded = await Promise.all(
             paidDetailRows.map(async (row) => {
                 const [scholarshipRows] = await db.query(
                     `SELECT paid_amt FROM fee_payment_transaction_scholarship_details WHERE order_id = ? AND payment_status = '1'`,
                     [row.order_id]
                 );
-                if (scholarshipRows.length > 0) {
-                    return { ...row, payment_type: 'Academic', paid_amt: scholarshipRows[0].paid_amt };
-                }
-
                 const [transportRows] = await db.query(
                     `SELECT total_paid_fees FROM transport_payment_tran_details WHERE order_id = ?`,
                     [row.order_id]
                 );
-                if (transportRows.length > 0) {
-                    return { ...row, payment_type: 'Transport', paid_amt: transportRows[0].total_paid_fees };
-                }
-
                 const [hostelRows] = await db.query(
                     `SELECT total_paid_fees FROM fee_payment_transaction_hostel_details WHERE order_id = ?`,
                     [row.order_id]
                 );
+
+                const entries = [];
+
+                if (scholarshipRows.length > 0) {
+                    entries.push({ ...row, payment_type: 'Academic', paid_amt: scholarshipRows[0].paid_amt });
+                }
+                if (transportRows.length > 0) {
+                    entries.push({ ...row, payment_type: 'Transport', paid_amt: transportRows[0].total_paid_fees });
+                }
                 if (hostelRows.length > 0) {
-                    return { ...row, payment_type: 'Hostel' , paid_amt: hostelRows[0].total_paid_fees };
+                    entries.push({ ...row, payment_type: 'Hostel', paid_amt: hostelRows[0].total_paid_fees });
                 }
 
-                return { ...row, payment_type: 'Academic', paid_amt: row.txn_amt };
+                if (entries.length === 0) {
+                    entries.push({ ...row, payment_type: 'Academic', paid_amt: row.txn_amt });
+                }
+
+                return entries;
             })
         );
+
+        const paidDetailRowsWithType = paidDetailRowsExpanded.flat();
 
 
         logger.info(`[Fees] Monthly fee details fetched for student: ${studentId}`);
