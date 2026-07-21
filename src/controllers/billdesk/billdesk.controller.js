@@ -738,6 +738,7 @@ async function handleCallback(req, res) {
 
         const phpPayload = {
             orderId,
+            traceId: bdTraceId,
             studentId: '',
             childMerchantId: '',
             txnAmount: txnAmt || 0,
