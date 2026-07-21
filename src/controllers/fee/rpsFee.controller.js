@@ -147,7 +147,8 @@ async function getMonthlyFeesDetails(req, res) {
             const principalRemaining = Math.round((rowTotalAmount - rowPaidAmount) * 100) / 100;
 
             if (isFineApplicable === 1 && isFineCalculated === 0 && principalRemaining > 1) {
-                fineAmount = parseInt(row.fine_amount) || 20;
+                // fineAmount = parseInt(row.fine_amount) || 20;
+                fineAmount = parseInt(row.fine_amount) || 1;
 
                 if (today > dueDateObj) {
                     isFineCalculated = 1;
