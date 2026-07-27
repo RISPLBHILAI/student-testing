@@ -737,7 +737,7 @@ async function handleCallback(req, res) {
         logger.info(`[Billdesk] Routing to ${paymentTypeCode} callback`);
 
         const phpPayload = {
-            orderId,
+            orderId: bdTraceId,
             traceId: bdTraceId,
             studentId: '',
             childMerchantId: '',
