@@ -813,7 +813,8 @@ WHERE
         let totalBaseFee = 0;
         let totalFineAll = 0;
         let totalPaidPrincipal = 0;
-        const finePerDayDefault = 25;
+        const finePerDayDefault = 0.25;
+        // const finePerDayDefault = 25;
 
         for (const row of rows) {
             const hostelName = row.hostel_name;
