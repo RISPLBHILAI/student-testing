@@ -854,7 +854,8 @@ WHERE
             const countDaysFromToday = (date) => {
                 console.log("step 1",date);
                 if (!date) return 0;
-                const today = new Date();
+                const rawtoday = new Date();
+                const today = formatDateIST(rawtoday);
                 today.setHours(0, 0, 0, 0);
                 const givenDate = new Date(date);
                 console.log("step 2",givenDate);
