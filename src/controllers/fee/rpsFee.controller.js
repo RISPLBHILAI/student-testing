@@ -147,8 +147,8 @@ async function getMonthlyFeesDetails(req, res) {
             const principalRemaining = Math.round((rowTotalAmount - rowPaidAmount) * 100) / 100;
 
             if (isFineApplicable === 1 && isFineCalculated === 0 && principalRemaining > 1) {
-                // fineAmount = parseInt(row.fine_amount) || 20;
-                fineAmount = parseInt(row.fine_amount) || 1;
+                fineAmount = parseInt(row.fine_amount) || 20;
+                // fineAmount = parseInt(row.fine_amount) || 1;
 
                 if (today > dueDateObj) {
                     isFineCalculated = 1;
@@ -258,14 +258,16 @@ async function getMonthlyFeesDetails(req, res) {
 
                 const payment_types = [];
 
-                if (scholarshipRows.length > 0) {
-                    payment_types.push({ type: 'Academic', paid_amt: scholarshipRows[0].paid_amt });
-                }
+
                 if (transportRows.length > 0) {
                     payment_types.push({ type: 'Transport', paid_amt: transportRows[0].total_paid_fees });
                 }
                 if (hostelRows.length > 0) {
                     payment_types.push({ type: 'Hostel', paid_amt: hostelRows[0].total_paid_fees });
+                }
+
+                if (scholarshipRows.length > 0) {
+                    payment_types.push({ type: 'Academic', paid_amt: scholarshipRows[0].paid_amt });
                 }
 
                 if (payment_types.length === 0) {
