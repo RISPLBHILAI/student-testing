@@ -823,7 +823,10 @@ WHERE
             const currentFeeHostel = parseInt(row.current_fee_hostel) || 0;
             const cmToPay = parseInt(row.cm_to_pay) || 0;
             const finePerDay = parseInt(row.fine_per_day) || finePerDayDefault;
+
+            console.log("rowduedate",row.main_due_date)
             const mainDueDate = formatDateIST(row.main_due_date);
+            console.log("mainduedate",mainDueDate)
             const mainFromDate = formatDateIST(row.main_from_date);
             const mainToDate = formatDateIST(row.main_to_date);
             const lastPaymentDate = row.last_payment_date;
