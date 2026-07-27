@@ -852,10 +852,13 @@ WHERE
             };
 
             const countDaysFromToday = (date) => {
+                console.log("step 1",date);
                 if (!date) return 0;
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const givenDate = new Date(date);
+                console.log("step 2",givenDate);
+                console.log("step 3",today);
                 if (givenDate < today) {
                     return Math.floor((today - givenDate) / (1000 * 60 * 60 * 24));
                 }
