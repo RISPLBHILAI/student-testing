@@ -569,7 +569,7 @@ WHERE
             return response;
         }
 
-        const finePerDay = 25;
+        const finePerDay = 0.25;
         let totalFeeWithoutFine = 0;
         let totalTransportPaidbase = 0;
         let totalRemaining = 0;
