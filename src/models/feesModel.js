@@ -23,7 +23,7 @@ class FeesModel {
             let date;
 
             // Check if it's already in ISO format
-            if (dateString.includes('T')) {
+            if (dateString instanceof Date) {
                 date = new Date(dateString);
             } else if (dateString.includes('/')) {
                 // Handle d/m/Y or m/d/Y formats
@@ -824,9 +824,9 @@ WHERE
             const cmToPay = parseInt(row.cm_to_pay) || 0;
             const finePerDay = parseInt(row.fine_per_day) || finePerDayDefault;
 
-            console.log("rowduedate",row.main_due_date)
+            console.log("rowduedate", row.main_due_date)
             const mainDueDate = formatDateIST(row.main_due_date);
-            console.log("mainduedate",mainDueDate)
+            console.log("mainduedate", mainDueDate)
             const mainFromDate = formatDateIST(row.main_from_date);
             const mainToDate = formatDateIST(row.main_to_date);
             const lastPaymentDate = row.last_payment_date;
@@ -852,14 +852,11 @@ WHERE
             };
 
             const countDaysFromToday = (date) => {
-                console.log("step 1",date);
                 if (!date) return 0;
-                const rawtoday = new Date();
-                const today = formatDateIST(rawtoday);
-                today.setHours(0, 0, 0, 0);
+                const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // "2026-07-27"
+                const today = new Date(todayIST + 'T00:00:00Z');
                 const givenDate = new Date(date);
-                console.log("step 2",givenDate);
-                console.log("step 3",today);
+                givenDate.setUTCHours(0, 0, 0, 0);
                 if (givenDate < today) {
                     return Math.floor((today - givenDate) / (1000 * 60 * 60 * 24));
                 }
