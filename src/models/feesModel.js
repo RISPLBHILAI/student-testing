@@ -509,7 +509,8 @@ WHERE
                 }
 
                 additionalFeeArr.fee_details_arr.push({
-                    fee_type: feeType1,
+                    fee_type: feeType,
+                    fee_type_name: feeType1,
                     fee_amount: feeAmount,
                     fee_paid: feePaid,
                     due_date: dueDate,
