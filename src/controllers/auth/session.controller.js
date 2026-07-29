@@ -2,7 +2,8 @@ const jwt = require("jsonwebtoken");
 const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
-const { generateAccessToken } = require("../../../../shared/services/tokenService");
+const tokenSvc = require("../../../../shared/services/tokenService");
+const { generateAccessToken } = tokenSvc;
 
 const OTPService = require("../../../../shared/services/otpService");
 
@@ -75,8 +76,10 @@ async function selectStudent(req, res) {
             return sendError(res, "Invalid student selection", 400);
         }
 
+        const ip = req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
         // ✅ use generateAccessToken so issuer is always included
-        const token = generateAccessToken(
+        const accessToken = generateAccessToken(
             {
                 user_id: selectedStudent.id,
                 mobile: decoded.mobile,
@@ -87,10 +90,27 @@ async function selectStudent(req, res) {
             { expiresIn: "7d" }
         );
 
+        // ✅ issue a real refresh token too — matches single-student OTP flow.
+        // Without this, frontend session checks (e.g. push-token sync) that
+        // require both tokens will never pass for this flow.
+        const { raw: refreshToken, hash } = tokenSvc.generateRefreshToken();
+
+        if (!IS_DEV) {
+            await tokenSvc.saveRefreshToken({
+                userId: selectedStudent.id,
+                app: "student",
+                tokenHash: hash,
+                ip,
+                userAgent: req.headers["user-agent"],
+            });
+        }
+
         logger.info(`[Session:student] Student selected → student_id=${selectedStudent.id}`);
 
         return sendSuccess(res, {
-            token,
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            token: accessToken, // kept for backward compatibility with existing clients
             student: {
                 id: selectedStudent.id,
                 name: selectedStudent.stud_name,
