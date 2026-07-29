@@ -141,7 +141,25 @@ async function getStudentsForCurrentMobile(req, res) {
             return sendError(res, "Mobile number not found in session", 400);
         }
 
-        const studentRecords = await findStudentsByMobile(mobile);
+        const [studentRecords] = await db.query(
+            `SELECT
+                base.id,
+                base.stud_name,
+                base.stud_roll_no,
+                base.admis_on_cor_id,
+                base.admis_on_sem_year_id,
+                base.stud_profile_pic,
+                base.stud_enroll_no,
+                cor.cor_name
+            FROM
+                tblstud_profile AS base
+            RIGHT JOIN tblcourse AS cor
+            ON
+                cor.id = base.admis_on_cor_id
+            WHERE
+                stud_mobile = ? AND base.current_status IN('regular', 'x_regular');`,
+            [mobile]
+        );
 
         if (!studentRecords.length) {
             return sendError(res, "No student profiles found", 404);
@@ -151,7 +169,7 @@ async function getStudentsForCurrentMobile(req, res) {
             id: s.id,
             name: s.stud_name,
             rollNumber: s.stud_roll_no,
-            course: s.course || s.admis_on_cor_id || "B.Tech",
+            course: s.cor_name || s.admis_on_cor_id || "B.Tech",
             year: s.year || s.admis_on_sem_year_id || "3rd Year",
             profile: s.stud_profile_pic,
             enrollNumber: s.stud_enroll_no,

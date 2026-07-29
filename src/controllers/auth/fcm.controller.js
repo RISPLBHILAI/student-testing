@@ -84,6 +84,7 @@ async function saveFcmToken(req, res) {
                 SET
                     expo_push_token = ?,
                     device_type = ?,
+                    push_provider = 'EXPO',
                     updated_at = NOW()
                 WHERE
                     stud_id = ?
