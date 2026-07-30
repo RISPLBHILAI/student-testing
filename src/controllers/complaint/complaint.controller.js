@@ -42,7 +42,8 @@ const formatComplaint = (complaint, departmentName) => ({
     priority: complaint.priority || '',
     resolver_department: departmentName,
     resolution_remarks: complaint.resolution_remarks || null,
-    can_delete: complaint.status === 'Pending'
+    can_delete: complaint.status === 'Pending',
+    created_at: complaint.created_at,
 });
 
 async function createComplaint(req, res) {
