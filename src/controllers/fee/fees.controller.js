@@ -189,7 +189,7 @@ async function gymSubscriptionDetails(req, res) {
 
         const gymData = await FeesModel.gymSubscriptionData(studId);
 
-        console.log(gymData);
+        // console.log(gymData);
 
         return sendSuccess(res, gymData, 'Gym subscription fetched successfully');
 

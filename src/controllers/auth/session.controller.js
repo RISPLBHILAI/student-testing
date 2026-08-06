@@ -136,7 +136,7 @@ async function selectStudent(req, res) {
 async function getStudentsForCurrentMobile(req, res) {
     try {
         const mobile = req.user?.mobile;
-        console.log(req.user);
+        // console.log(req.user);
 
         if (!mobile) {
             return sendError(res, "Mobile number not found in session", 400);

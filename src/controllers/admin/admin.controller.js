@@ -108,7 +108,7 @@ async function impersonateStudent(req, res) {
         const token = generateAccessToken({
             user_id: student.id,
             name: student.stud_name,
-            mobile: student.stud_contactno,
+            mobile: student.stud_mobile,
             role: "student",
             app: "student",
             registered: true,

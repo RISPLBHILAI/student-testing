@@ -20,7 +20,7 @@ const { webcrypto } = require("crypto");
 if (!globalThis.crypto) {
   globalThis.crypto = webcrypto;
 }
-console.log("crypto polyfill check:", typeof globalThis.crypto, typeof globalThis.crypto?.getRandomValues);
+// console.log("crypto polyfill check:", typeof globalThis.crypto, typeof globalThis.crypto?.getRandomValues);
 
 // ─── 1. Config (must be first — loads dotenv) ─────────────────────────────────
 const config = require("./src/config");
