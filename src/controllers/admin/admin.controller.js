@@ -92,7 +92,7 @@ async function impersonateStudent(req, res) {
                 stud_roll_no,
                 stud_enroll_no,
                 essl_id,
-                stud_contactno
+                stud_mobile
              FROM tblstud_profile
              WHERE id = ?
              LIMIT 1`,
