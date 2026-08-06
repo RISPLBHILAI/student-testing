@@ -571,7 +571,7 @@ WHERE
             return response;
         }
 
-        const finePerDay = 0.25;
+        const finePerDay = 25;
         let totalFeeWithoutFine = 0;
         let totalTransportPaidbase = 0;
         let totalRemaining = 0;
@@ -815,8 +815,7 @@ WHERE
         let totalBaseFee = 0;
         let totalFineAll = 0;
         let totalPaidPrincipal = 0;
-        const finePerDayDefault = 0.25;
-        // const finePerDayDefault = 25;
+        const finePerDayDefault = 25;
 
         for (const row of rows) {
             const hostelName = row.hostel_name;
@@ -1301,7 +1300,7 @@ WHERE
                         if (greaterDate === todayDate) {
                             let fineData;
                             if (clg_id !== '8' && clg_id !== 8) {
-                                fineData = this.calculateFine(0.25, academicDueDate, greaterDate, 'tution_fee');
+                                fineData = this.calculateFine(25, academicDueDate, greaterDate, 'tution_fee');
                             } else {
                                 fineData = this.calculateFine(10, academicDueDate, greaterDate, 'tution_fee');
                             }
@@ -1335,7 +1334,7 @@ WHERE
                         if (clg_id === '8' || clg_id === 8) {
                             fineData = this.calculateFine(10, academicDueDateNew, lastAcademicPaidDate, 'tution_fee');
                         } else {
-                            fineData = this.calculateFine(0.25, academicDueDateNew, lastAcademicPaidDate, 'tution_fee');
+                            fineData = this.calculateFine(25, academicDueDateNew, lastAcademicPaidDate, 'tution_fee');
                         }
                         academicApplicableFine = fineData.total_fine;
                     } else {
@@ -1354,7 +1353,7 @@ WHERE
                         const greaterDate = this.getGreaterDate(scholarshipDueDate, todayDate);
 
                         if (greaterDate === todayDate) {
-                            const fineData = this.calculateFine(0.25, scholarshipDueDate, greaterDate, 'scholarship_fee');
+                            const fineData = this.calculateFine(25, scholarshipDueDate, greaterDate, 'scholarship_fee');
                             scholarshipApplicableFine = fineData.total_fine;
                             scholarshipFee += scholarshipApplicableFine;
 
@@ -1381,7 +1380,7 @@ WHERE
                             if (finalDueDate === academicDueDate) {
                                 let fineData;
                                 if (clg_id !== '8' && clg_id !== 8) {
-                                    fineData = this.calculateFine(0.25, finalDueDate, greaterDate, 'tution_fee');
+                                    fineData = this.calculateFine(25, finalDueDate, greaterDate, 'tution_fee');
                                 } else {
                                     fineData = this.calculateFine(10, finalDueDate, greaterDate, 'tution_fee');
                                 }
@@ -1396,7 +1395,7 @@ WHERE
                                     fine_multiplier: fineData.fine_amt
                                 });
                             } else if (finalDueDate === scholarshipDueDate) {
-                                const fineData = this.calculateFine(0.25, finalDueDate, greaterDate, 'scholarship_fee');
+                                const fineData = this.calculateFine(25, finalDueDate, greaterDate, 'scholarship_fee');
                                 scholarshipApplicableFine = fineData.total_fine;
                                 scholarshipFee += scholarshipApplicableFine;
 

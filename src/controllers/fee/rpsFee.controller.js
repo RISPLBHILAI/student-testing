@@ -148,7 +148,6 @@ async function getMonthlyFeesDetails(req, res) {
 
             if (isFineApplicable === 1 && isFineCalculated === 0 && principalRemaining > 1) {
                 fineAmount = parseInt(row.fine_amount) || 20;
-                // fineAmount = parseInt(row.fine_amount) || 1;
 
                 if (today > dueDateObj) {
                     isFineCalculated = 1;
