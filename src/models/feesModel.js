@@ -10,6 +10,19 @@ class FeesModel {
 
     // ==================== HELPER FUNCTIONS ====================
 
+    static async getCollegeName(clgId) {
+        try {
+            const [rows] = await db.query(
+                `SELECT short_name FROM tblcollege WHERE id = ?`,
+                [clgId]
+            );
+            return rows[0]?.short_name || null;
+        } catch (error) {
+            console.error('Error in getCollegeName:', error);
+            return null;
+        }
+    }
+
     /**
      * Convert date string to Y-m-d format
      */
@@ -293,6 +306,116 @@ class FeesModel {
             total_fine: fineAmt * monthsDiff,
             months: monthsDiff
         };
+    }
+
+    static computeMaxInstallments(classEndDate) {
+        if (!classEndDate) return 0;
+        const today = new Date();
+        const ced = new Date(classEndDate);
+        let months = (ced.getFullYear() - today.getFullYear()) * 12 + (ced.getMonth() - today.getMonth());
+        let count = months + 1;
+        if (count > 4) count = 4;
+        if (count < 0) count = 0;
+        return count;
+    }
+
+
+    static formatDateTime(date) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    static addMonths(dateStr, months) {
+        const d = new Date(dateStr);
+        d.setMonth(d.getMonth() + months);
+        return d.toISOString().slice(0, 10);
+    }
+
+    // ── saveInstallmentPlan ──────────────────────────────────────────────────────
+    // OTP must already be verified by the controller before calling this.
+    // Mirrors save_opt_installment_chk_otp.php's `saveInstallment` branch exactly:
+    // same insert order (student_applicable_fee → applied_installment →
+    // installment_details loop), same floor()-split math, same is_emi='1'.
+
+    static async saveInstallmentPlan(studId, noOfInstallments) {
+        // Re-check eligibility server-side — never trust client state alone
+        const eligibility = await this.isAllowedInstallment(studId);
+        if (!eligibility.success || !eligibility.allowed) {
+            return { success: false, message: 'Not eligible for the installment plan' };
+        }
+
+        noOfInstallments = parseInt(noOfInstallments);
+        if (noOfInstallments < eligibility.data.minInstallments || noOfInstallments > eligibility.data.maxInstallments) {
+            return { success: false, message: 'Invalid number of installments' };
+        }
+
+        const student = await this.getStudentCurrentSemester(studId);
+        if (!student) return { success: false, message: 'Student not found' };
+        const { clg_id, cor_id, branch_id, sem_year_id } = student;
+
+        const dueAmt = eligibility.data.dueAmount;               // total_payable_for_installment
+        const totalWithInterest = eligibility.data.totalWithInterest; // total_amt_with_interest
+        // TODO: legacy also stores `fine_before_installment` — the outstanding fine at
+        // the moment of opt-in, computed client-side in the old page. Our getFeeSummary
+        // currently bakes fine into academicFee rather than reporting it separately.
+        // Wire this to the real value if you need it broken out for reporting; 0 for now.
+        const fineBeforeInstallment = 0;
+
+        const installAmt = Math.floor(totalWithInterest / noOfInstallments);
+        const lastAmt = totalWithInterest - (installAmt * (noOfInstallments - 1));
+
+        const now = new Date();
+        const datetime = this.formatDateTime(now);
+        const startDate = this.getTodayDate();
+        const eachMonthEmiDate = new Date(startDate).getDate();
+
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // 1. Register the installment fee so getAllFeesData() picks the plan up
+            //    (mirrors legacy's student_applicable_fee insert, fee_category=19)
+            await connection.query(
+                `INSERT INTO student_applicable_fee 
+                (stud_id, sem_id, clg_id, cor_id, branch_id, fee_category, fee_amount, fee_type, last_updated_by, last_updated_on)
+             VALUES (?, ?, ?, ?, ?, '19', ?, 'installment_fee', ?, ?)`,
+                [studId, sem_year_id, clg_id, cor_id, branch_id, totalWithInterest, studId, datetime]
+            );
+
+            // 2. applied_installment header row — is_emi = '1' (matches legacy, NOT '0')
+            const [result] = await connection.query(
+                `INSERT INTO applied_installment 
+                (fee_type, is_emi, std_id, clg_id, cor_id, bra_id, sem_id,
+                 no_of_installments, installment_applied_on, total_amount,
+                 total_amt_with_interest, each_month_emi_date, fine_before_installment, is_completed)
+             VALUES ('1', '1', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+                [studId, clg_id, cor_id, branch_id, sem_year_id, noOfInstallments, datetime, dueAmt, totalWithInterest, eachMonthEmiDate, fineBeforeInstallment]
+            );
+            const applInstId = result.insertId;
+
+            // 3. installment_details rows — floor split, first = today, +1 month per row
+            for (let i = 1; i <= noOfInstallments; i++) {
+                const installDate = i === 1 ? startDate : this.addMonths(startDate, i - 1);
+                const payable = i === noOfInstallments ? lastAmt : installAmt;
+
+                await connection.query(
+                    `INSERT INTO installment_details 
+                    (fee_type, is_emi, appl_inst_id, stud_id, installment_no, installment_date, payable_amount, paid_amount, created_by, created_on, clg_id)
+                 VALUES ('1', '1', ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+                    [applInstId, studId, i, installDate, payable, studId, datetime, clg_id]
+                );
+            }
+
+            await connection.commit();
+            return { success: true, appliedInstId: applInstId };
+
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error in saveInstallmentPlan:', error);
+            return { success: false, message: 'Failed to save installment plan', error: error.message };
+        } finally {
+            connection.release();
+        }
     }
 
     // ==================== DATABASE QUERY FUNCTIONS ====================
@@ -1561,7 +1684,10 @@ WHERE
                 all_active_semester_year.class_end_date,
                 student_reciveable_fee.scholarship AS scholarship_amt1,
                 student_reciveable_fee.scholarship_fee AS scholarship_amt2,
-                stud_current_sem_year.clg_id
+                stud_current_sem_year.clg_id,
+                stud_current_sem_year.cor_id,
+                stud_current_sem_year.branch_id,
+                stud_current_sem_year.sem_year_id
             FROM stud_current_sem_year
             JOIN all_active_semester_year 
                 ON stud_current_sem_year.clg_id = all_active_semester_year.clg_id
@@ -1576,54 +1702,72 @@ WHERE
             const [rows] = await db.query(query, [studId]);
 
             if (!rows || rows.length === 0) {
-                return {
-                    success: true,
-                    allowed: false,
-                    message: 'No student data found'
-                };
+                return { success: true, allowed: false, message: 'No student data found' };
             }
 
             const row = rows[0];
-            const classEndDate = new Date(row.class_end_date);
+            const { clg_id, cor_id, branch_id, sem_year_id, class_end_date } = row;
+
+            const classEndDate = new Date(class_end_date);
             const todayDate = new Date();
             todayDate.setHours(0, 0, 0, 0);
             classEndDate.setHours(0, 0, 0, 0);
 
             const scholarshipAmt1 = parseInt(row.scholarship_amt1) || 0;
             const scholarshipAmt2 = parseInt(row.scholarship_amt2) || 0;
-
-            // Determine final scholarship amount (last non-zero value wins)
             let finalScAmt = 0;
-            if (scholarshipAmt1 > 0) {
-                finalScAmt = scholarshipAmt1;
-            }
-            if (scholarshipAmt2 > 0) {
-                finalScAmt = scholarshipAmt2;
-            }
+            if (scholarshipAmt1 > 0) finalScAmt = scholarshipAmt1;
+            if (scholarshipAmt2 > 0) finalScAmt = scholarshipAmt2;
 
-            // Calculate days difference
             const diffTime = classEndDate - todayDate;
             const daysGone = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // Get college name (you may need to adjust this based on your schema)
-            const collegeName = await this.getCollegeName(row.clg_id);
+            const collegeName = await this.getCollegeName(clg_id);
 
-            // Installment is allowed if:
-            // 1. Class has not ended (daysGone >= 0)
-            // 2. College is not 'RCDSR'
-            // 3. No scholarship amount
+            // Matches check_installment_applied_or_not.php exactly:
+            // fee_type='1' AND is_emi='1' — no is_completed filter, once opted always opted.
+            const [existingPlan] = await db.query(
+                `SELECT id FROM applied_installment 
+             WHERE std_id = ? AND clg_id = ? AND cor_id = ? AND bra_id = ? AND sem_id = ? 
+             AND fee_type = '1' AND is_emi = '1'`,
+                [studId, clg_id, cor_id, branch_id, sem_year_id]
+            );
+            const alreadyOpted = existingPlan.length > 0;
+
+            // Outstanding academic amount — server-computed source of truth
+            const feeSummary = await this.getFeeSummary(studId);
+            const dueAmt = feeSummary?.success ? (feeSummary.academic?.remaining || 0) : 0;
+
+            const maxInstallments = this.computeMaxInstallments(class_end_date);
+            const MIN_INSTALLMENTS = 2;
+            const INTEREST_RATE = 0.10;
+            const totalWithInterest = +(dueAmt + dueAmt * INTEREST_RATE).toFixed(2);
+
             const isAllowed = daysGone >= 0
                 && collegeName !== 'RCDSR'
-                && (finalScAmt === 0 || finalScAmt === null);
+                && (finalScAmt === 0 || finalScAmt === null)
+                && !alreadyOpted
+                && dueAmt > 0
+                && maxInstallments >= MIN_INSTALLMENTS;
 
             return {
                 success: true,
                 allowed: isAllowed,
                 data: {
-                    classEndDate: row.class_end_date,
+                    // NOTE: also nested here (not just top-level) because the existing
+                    // controller does `sendSuccess(res, isAllowedData.data, ...)` —
+                    // it drops the outer `allowed` key, so the client only ever sees `data`.
+                    allowed: isAllowed,
+                    classEndDate: class_end_date,
                     daysRemaining: daysGone,
                     scholarshipAmount: finalScAmt,
-                    collegeName: collegeName
+                    collegeName,
+                    alreadyOpted,
+                    dueAmount: dueAmt,
+                    interestRate: INTEREST_RATE,
+                    totalWithInterest,
+                    maxInstallments,
+                    minInstallments: MIN_INSTALLMENTS
                 }
             };
 
@@ -2011,6 +2155,241 @@ WHERE
         } catch (error) {
             console.error('❌ Error fetching gym subscription data:', error);
             return [];
+        }
+    }
+
+
+    /**
+     * ── Installment opt-in additions for FeesModel ──────────────────────────────
+     * Ported directly from the legacy save_opt_installment_chk_otp.php and
+     * check_installment_applied_or_not.php — field names, is_emi='1', the
+     * student_applicable_fee side-insert, and the floor()-split schedule math
+     * all mirror the PHP exactly. OTP itself is NOT handled here — that stays
+     * in the controller via your existing otpSvc/notifSvc (mobile-based).
+     *
+     * REPLACE your existing `isAllowedInstallment` with the version below.
+     * ADD `computeMaxInstallments`, `saveInstallmentPlan`, `addMonths`,
+     * `formatDateTime` as new static methods.
+     *
+     * Assumption to verify: `db.getConnection()` returns a connection with
+     * .query/.beginTransaction/.commit/.rollback/.release (mysql2 pool pattern).
+     * If your `db` module only exposes flat `db.query`, tell me and I'll adjust
+     * the transaction block.
+     */
+
+    // ── computeMaxInstallments ───────────────────────────────────────────────────
+
+    static computeMaxInstallments(classEndDate) {
+        if (!classEndDate) return 0;
+        const today = new Date();
+        const ced = new Date(classEndDate);
+        let months = (ced.getFullYear() - today.getFullYear()) * 12 + (ced.getMonth() - today.getMonth());
+        let count = months + 1;
+        if (count > 4) count = 4;
+        if (count < 0) count = 0;
+        return count;
+    }
+
+    // ── REPLACE existing isAllowedInstallment ────────────────────────────────────
+
+    static async isAllowedInstallment(studId) {
+        try {
+            const query = `
+            SELECT 
+                all_active_semester_year.class_end_date,
+                student_reciveable_fee.scholarship AS scholarship_amt1,
+                student_reciveable_fee.scholarship_fee AS scholarship_amt2,
+                stud_current_sem_year.clg_id,
+                stud_current_sem_year.cor_id,
+                stud_current_sem_year.branch_id,
+                stud_current_sem_year.sem_year_id
+            FROM stud_current_sem_year
+            JOIN all_active_semester_year 
+                ON stud_current_sem_year.clg_id = all_active_semester_year.clg_id
+                AND stud_current_sem_year.cor_id = all_active_semester_year.cor_id
+                AND stud_current_sem_year.branch_id = all_active_semester_year.branch_id
+                AND stud_current_sem_year.sem_year_id = all_active_semester_year.sem_id
+            JOIN student_reciveable_fee 
+                ON stud_current_sem_year.stud_id = student_reciveable_fee.student_id
+            WHERE stud_current_sem_year.stud_id = ?
+        `;
+
+            const [rows] = await db.query(query, [studId]);
+
+            if (!rows || rows.length === 0) {
+                return { success: true, allowed: false, message: 'No student data found' };
+            }
+
+            const row = rows[0];
+            const { clg_id, cor_id, branch_id, sem_year_id, class_end_date } = row;
+
+            const classEndDate = new Date(class_end_date);
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+            classEndDate.setHours(0, 0, 0, 0);
+
+            const scholarshipAmt1 = parseInt(row.scholarship_amt1) || 0;
+            const scholarshipAmt2 = parseInt(row.scholarship_amt2) || 0;
+            let finalScAmt = 0;
+            if (scholarshipAmt1 > 0) finalScAmt = scholarshipAmt1;
+            if (scholarshipAmt2 > 0) finalScAmt = scholarshipAmt2;
+
+            const diffTime = classEndDate - todayDate;
+            const daysGone = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            const collegeName = await this.getCollegeName(clg_id);
+
+            // Matches check_installment_applied_or_not.php exactly:
+            // fee_type='1' AND is_emi='1' — no is_completed filter, once opted always opted.
+            const [existingPlan] = await db.query(
+                `SELECT id FROM applied_installment 
+             WHERE std_id = ? AND clg_id = ? AND cor_id = ? AND bra_id = ? AND sem_id = ? 
+             AND fee_type = '1' AND is_emi = '1'`,
+                [studId, clg_id, cor_id, branch_id, sem_year_id]
+            );
+            const alreadyOpted = existingPlan.length > 0;
+
+            // Outstanding academic amount — server-computed source of truth
+            const feeSummary = await this.getFeeSummary(studId);
+            const dueAmt = feeSummary?.success ? (feeSummary.academic?.remaining || 0) : 0;
+
+            const maxInstallments = this.computeMaxInstallments(class_end_date);
+            const MIN_INSTALLMENTS = 2;
+            const INTEREST_RATE = 0.10;
+            const totalWithInterest = +(dueAmt + dueAmt * INTEREST_RATE).toFixed(2);
+
+            const isAllowed = daysGone >= 0
+                && collegeName !== 'RCDSR'
+                && (finalScAmt === 0 || finalScAmt === null)
+                && !alreadyOpted
+                && dueAmt > 0
+                && maxInstallments >= MIN_INSTALLMENTS;
+
+            return {
+                success: true,
+                allowed: isAllowed,
+                data: {
+                    classEndDate: class_end_date,
+                    daysRemaining: daysGone,
+                    scholarshipAmount: finalScAmt,
+                    collegeName,
+                    alreadyOpted,
+                    dueAmount: dueAmt,
+                    interestRate: INTEREST_RATE,
+                    totalWithInterest,
+                    maxInstallments,
+                    minInstallments: MIN_INSTALLMENTS
+                }
+            };
+
+        } catch (error) {
+            console.error('Error in isAllowedInstallment:', error);
+            return {
+                success: false,
+                allowed: false,
+                message: 'Error fetching isAllowedInstallment',
+                error: error.message
+            };
+        }
+    }
+
+    // ── Date helpers (mirror legacy date('Y-m-d H:i:s') / strtotime "+N month") ──
+
+    static formatDateTime(date) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    static addMonths(dateStr, months) {
+        const d = new Date(dateStr);
+        d.setMonth(d.getMonth() + months);
+        return d.toISOString().slice(0, 10);
+    }
+
+    // ── saveInstallmentPlan ──────────────────────────────────────────────────────
+    // OTP must already be verified by the controller before calling this.
+    // Mirrors save_opt_installment_chk_otp.php's `saveInstallment` branch exactly:
+    // same insert order (student_applicable_fee → applied_installment →
+    // installment_details loop), same floor()-split math, same is_emi='1'.
+
+    static async saveInstallmentPlan(studId, noOfInstallments) {
+        // Re-check eligibility server-side — never trust client state alone
+        const eligibility = await this.isAllowedInstallment(studId);
+        if (!eligibility.success || !eligibility.allowed) {
+            return { success: false, message: 'Not eligible for the installment plan' };
+        }
+
+        noOfInstallments = parseInt(noOfInstallments);
+        if (noOfInstallments < eligibility.data.minInstallments || noOfInstallments > eligibility.data.maxInstallments) {
+            return { success: false, message: 'Invalid number of installments' };
+        }
+
+        const student = await this.getStudentCurrentSemester(studId);
+        if (!student) return { success: false, message: 'Student not found' };
+        const { clg_id, cor_id, branch_id, sem_year_id } = student;
+
+        const dueAmt = eligibility.data.dueAmount;               // total_payable_for_installment
+        const totalWithInterest = eligibility.data.totalWithInterest; // total_amt_with_interest
+        // TODO: legacy also stores `fine_before_installment` — the outstanding fine at
+        // the moment of opt-in, computed client-side in the old page. Our getFeeSummary
+        // currently bakes fine into academicFee rather than reporting it separately.
+        // Wire this to the real value if you need it broken out for reporting; 0 for now.
+        const fineBeforeInstallment = 0;
+
+        const installAmt = Math.floor(totalWithInterest / noOfInstallments);
+        const lastAmt = totalWithInterest - (installAmt * (noOfInstallments - 1));
+
+        const now = new Date();
+        const datetime = this.formatDateTime(now);
+        const startDate = this.getTodayDate();
+        const eachMonthEmiDate = new Date(startDate).getDate();
+
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // 1. Register the installment fee so getAllFeesData() picks the plan up
+            //    (mirrors legacy's student_applicable_fee insert, fee_category=19)
+            await connection.query(
+                `INSERT INTO student_applicable_fee 
+                (stud_id, sem_id, clg_id, cor_id, branch_id, fee_category, fee_amount, fee_type, last_updated_by, last_updated_on)
+             VALUES (?, ?, ?, ?, ?, '19', ?, 'installment_fee', ?, ?)`,
+                [studId, sem_year_id, clg_id, cor_id, branch_id, totalWithInterest, studId, datetime]
+            );
+
+            // 2. applied_installment header row — is_emi = '1' (matches legacy, NOT '0')
+            const [result] = await connection.query(
+                `INSERT INTO applied_installment 
+                (fee_type, is_emi, std_id, clg_id, cor_id, bra_id, sem_id,
+                 no_of_installments, installment_applied_on, total_amount,
+                 total_amt_with_interest, each_month_emi_date, fine_before_installment, is_completed)
+             VALUES ('1', '1', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+                [studId, clg_id, cor_id, branch_id, sem_year_id, noOfInstallments, datetime, dueAmt, totalWithInterest, eachMonthEmiDate, fineBeforeInstallment]
+            );
+            const applInstId = result.insertId;
+
+            // 3. installment_details rows — floor split, first = today, +1 month per row
+            for (let i = 1; i <= noOfInstallments; i++) {
+                const installDate = i === 1 ? startDate : this.addMonths(startDate, i - 1);
+                const payable = i === noOfInstallments ? lastAmt : installAmt;
+
+                await connection.query(
+                    `INSERT INTO installment_details 
+                    (fee_type, is_emi, appl_inst_id, stud_id, installment_no, installment_date, payable_amount, paid_amount, created_by, created_on, clg_id)
+                 VALUES ('1', '1', ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+                    [applInstId, studId, i, installDate, payable, studId, datetime, clg_id]
+                );
+            }
+
+            await connection.commit();
+            return { success: true, appliedInstId: applInstId };
+
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error in saveInstallmentPlan:', error);
+            return { success: false, message: 'Failed to save installment plan', error: error.message };
+        } finally {
+            connection.release();
         }
     }
 }

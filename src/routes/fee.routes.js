@@ -11,10 +11,11 @@ const {
     getInstallmentData,
     getScholarshipData,
     gymSubscriptionDetails,
-
+    sendInstallmentOtp,
+    verifyAndSaveInstallmentPlan,
 } = require('../controllers/fee/fees.controller');
 
-const {getBaseFees, getMonthlyFeesDetails } = require('../controllers/fee/rpsFee.controller');
+const { getBaseFees, getMonthlyFeesDetails } = require('../controllers/fee/rpsFee.controller');
 
 const { getAllPaidFees } = require('../controllers/fee/receipt.controller');
 
@@ -29,12 +30,15 @@ router.get('/installment-data', auth(), getInstallmentData);
 router.get('/scholarship/:semId', auth(), getScholarshipData);
 router.get('/gym', auth(), gymSubscriptionDetails);
 
+// Installment opt-in
+router.post('/installment/send-otp', auth(), sendInstallmentOtp);
+router.post('/installment/save', auth(), verifyAndSaveInstallmentPlan);
+
 /// RPS routes
 router.get('/rps/base', auth(), getBaseFees);
 router.get('/rps/monthly', auth(), getMonthlyFeesDetails);
 
 /// Receipt routes
 router.get('/paid-fees', auth(), getAllPaidFees);
-
 
 module.exports = router;
