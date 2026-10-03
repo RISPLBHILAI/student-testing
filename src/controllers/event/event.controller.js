@@ -26,7 +26,6 @@ async function handoffUrl(req, res) {
 
     try {
         const ts = Math.floor(Date.now() / 1000);
-        console.log(ts);
         const nonce = crypto.randomBytes(16).toString("hex");
 
         const sig = crypto

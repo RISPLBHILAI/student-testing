@@ -102,37 +102,25 @@ async function refresh(req, res) {
     }
 }
 
+// ─── POST /auth/validate-token ────────────────────────────────────────────────
+// Called by the app's splash screen on every start. A missing/expired/invalid
+// access token returns 401 (not 200 { valid: false }) so the app's global 401
+// handler refreshes with the refresh token and retries — otherwise every app
+// open after the 15m access-token lifetime would log the student out.
 async function validateToken(req, res) {
-      try {
-            // Read token from Authorization header
-            const authHeader = req.headers.authorization;
+    const token = req.headers.authorization?.split(" ")[1];
 
-            if (!authHeader) {
-                return res.status(200).json({ valid: false });
-            }
+    if (!token) {
+        return res.status(401).json({ valid: false });
+    }
 
-            const token = authHeader.split(" ")[1];
-
-            // Verify token
-            jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-                if (err) {
-                    return res.status(200).json({ valid: false });
-                }
-
-                // Token is valid
-                return res.status(200).json({
-                    valid: true,
-                    // token: authHeader
-                    // user: decoded,
-                });
-            });
-
-        } catch (error) {
-            return res.status(500).json({
-                valid: false,
-                error: "Internal server error"
-            });
-        }
+    try {
+        // Same issuer check as every other token verification
+        jwt.verify(token, process.env.JWT_SECRET, { issuer: "srgi-api" });
+        return res.status(200).json({ valid: true });
+    } catch (err) {
+        return res.status(401).json({ valid: false });
+    }
 }
 
 module.exports = { refresh, validateToken };
