@@ -11,7 +11,7 @@ const EVENT_HANDOFF_SHARED_SECRET =
 const EVENT_ID = 1;
 
 const CREATE_HANDOFF_URL =
-    "https://myrungta.com/erp/StudentPanel/events/create_handoff.php";
+    "https://myrungta.com/erp/StudentPanel/events/create_event_handoff.php";
 
 // ─── GET /event/handoff-url ───────────────────────────────────────────────────
 // Returns a short-lived signed URL that logs the student into the PHP events
