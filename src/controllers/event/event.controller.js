@@ -45,7 +45,7 @@ async function handoffUrl(req, res) {
 
         return sendSuccess(res, {
             url: `${CREATE_HANDOFF_URL}?${params.toString()}`,
-            expires_in: 90,
+            expires_in: 300,
         }, "Event handoff URL generated");
 
     } catch (err) {
