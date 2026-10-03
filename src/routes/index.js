@@ -80,6 +80,7 @@ const libraryRoutes = require("./library.routes");
 const complaintRoutes = require("./complaint.routes");
 const feeRoutes = require("./fee.routes");
 const billDeskRoutes = require("./billdesk.routes");
+const eventRoutes = require("./event.routes");
 
 
 router.use("/auth", authRoutes);
@@ -95,6 +96,7 @@ router.use("/library", libraryRoutes);
 router.use("/complaints", complaintRoutes);
 router.use("/fees", feeRoutes);
 router.use("/billdesk", billDeskRoutes);
+router.use("/event", eventRoutes);
 
 // ─── Protected routes (add more groups below as you build them) ────────────────
 // router.use("/employees",  auth(), require("./employee.routes"));
