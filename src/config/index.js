@@ -52,6 +52,13 @@ const config = {
     allowedOrigins,
   },
 
+  admin: {
+    // Student-app admin (employee 271). Logs in to search and impersonate
+    // students. Must also be in BYPASS_MOBILES (.env) — the admin logs in with
+    // the bypass OTP; no OTP is sent to this number.
+    mobile: "8319332080",
+  },
+
   log: {
     dir: process.env.LOG_DIR || path.resolve(__dirname, "../../../logs"),
   },

@@ -3,6 +3,43 @@ const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 const Timetable = require('../../models/Timetable');
 
+// Prefix for event_master.banner_path (stored as a relative path). No trailing slash.
+const EVENT_BANNER_BASE_URL = "https://myrungta.com/erp/StudentPanel/events";
+
+// Open events for the dashboard banner, shaped to match the app's
+// DashboardEvent type. A failure here must not break the whole dashboard.
+async function getOpenEvents() {
+    try {
+        const [rows] = await db.query(
+            `SELECT
+                event_id,
+                event_name,
+                event_slug,
+                DATE_FORMAT(event_date, '%Y-%m-%d') AS event_date,
+                venue,
+                banner_path
+            FROM srgi_events.event_master
+            WHERE status = 'OPEN'
+            ORDER BY event_date ASC`
+        );
+
+        return rows.map((e) => ({
+            id: e.event_id,
+            title: e.event_name,
+            slug: e.event_slug,
+            date: e.event_date,
+            location: e.venue || null,
+            image_url: e.banner_path
+                ? `${EVENT_BANNER_BASE_URL}/${e.banner_path.replace(/^\/+/, "")}`
+                : null,
+            is_active: 1,
+        }));
+    } catch (err) {
+        logger.error(`[Dashboard:student] getOpenEvents error: ${err.message}`);
+        return [];
+    }
+}
+
 async function dashboard(req, res) {
     try {
         const student_id = req.user.user_id;
@@ -17,6 +54,8 @@ async function dashboard(req, res) {
                 tp.stud_name,
                 tp.stud_profile_pic,
                 tp.essl_id,
+                tp.current_status,
+                tp.atten_nonatten_priv,
                 scs.clg_id,
                 scs.cor_id,
                 scs.branch_id,
@@ -32,7 +71,7 @@ async function dashboard(req, res) {
             return sendError(res, "Student not found", 404);
         }
 
-          const student_profile_pic = `https://myrungta.com/erp/StudentPanel/stud_photos/${studentInfo[0]?.stud_profile_pic}` || '';
+        const student_profile_pic = `https://myrungta.com/erp/StudentPanel/stud_photos/${studentInfo[0]?.stud_profile_pic}` || '';
 
 
         const { essl_id, clg_id, cor_id, branch_id, sem_year_id } = studentInfo[0];
@@ -111,7 +150,16 @@ async function dashboard(req, res) {
 
         // console.log(`📚 Fetching today's timetable for student ID: ${student_id}`);
 
-        const result = await Timetable.getTodayTimetable(student_id);
+        // Events are only shown to regular students with attendance privilege.
+        const s = studentInfo[0];
+        const eventsVisible =
+            String(s.current_status || '').trim().toLowerCase() === 'regular' &&
+            s.atten_nonatten_priv == '1';
+
+        const [result, events] = await Promise.all([
+            Timetable.getTodayTimetable(student_id),
+            eventsVisible ? getOpenEvents() : [],
+        ]);
         const formattedTimetable = Timetable.formatTimetableData(result.timetable);
 
         return sendSuccess(res, {
@@ -120,7 +168,8 @@ async function dashboard(req, res) {
                 student_profile_pic
             },
             attendance: todayIntime,
-            timeTable: formattedTimetable
+            timeTable: formattedTimetable,
+            events,
         }, "Dashboard fetched successfully");
 
     } catch (err) {

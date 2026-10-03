@@ -1,26 +1,31 @@
 /**
- * emp/src/routes/admin.routes.js
- * ───────────────────────────────
- * Admin-only endpoints.
+ * student/src/routes/admin.routes.js
+ * ───────────────────────────────────
+ * Student-app admin endpoints (admin impersonation).
  *
- * GET  /admin/active-users           → real-time online employees
- * GET  /admin/active-users/history   → daily active users over date range
- * POST /admin/invalidate-all-tokens  → force logout all employees
+ * GET  /admin/search-students       → search students to act as
+ * POST /admin/impersonate-student   → issue a token for the chosen student
  */
 
 const router       = require("express").Router();
 const { auth }     = require("../../../shared/middlewares/auth");
-const activeUsers  = require("../controllers/admin/activeUsers.controller");
+const { sendError } = require("../../../shared/utils/response");
+const config       = require("../config");
 const adminController  = require("../controllers/admin/admin.controller");
 
-
-// All admin routes require admin role
-router.get ("/active-users",          auth({ roles: ["admin"] }), activeUsers.getRealTimeActive);
-router.get ("/active-users/history",  auth({ roles: ["admin"] }), activeUsers.getHistory);
-router.post("/invalidate-all-tokens", auth({ roles: ["admin"] }), activeUsers.invalidateAllTokens);
+// Student-app admin = the token issued by the admin branch of verifyOtp
+// (isAdmin: true, app: "student"), and its mobile must still be
+// config.admin.mobile — so changing that number cuts off old tokens.
+function requireStudentAdmin(req, res, next) {
+    const u = req.user || {};
+    if (u.isAdmin !== true || u.app !== "student" || u.mobile !== config.admin.mobile) {
+        return sendError(res, "Admin access required", 403);
+    }
+    return next();
+}
 
 // Endpoints that control student switching
-router.get('/search-students', adminController.searchStudents);
-router.post('/impersonate-student', adminController.impersonateStudent);
+router.get('/search-students', auth(), requireStudentAdmin, adminController.searchStudents);
+router.post('/impersonate-student', auth(), requireStudentAdmin, adminController.impersonateStudent);
 
 module.exports = router;

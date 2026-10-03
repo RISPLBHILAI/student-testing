@@ -5,6 +5,7 @@ const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 const StudentService = require("../../services/student.service");
+const config = require("../../config");
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -112,11 +113,7 @@ async function verifyOtp(req, res) {
         }
 
         // ── Check for admin ──────────────────────────────────────────────────────
-        const [adminRows] = await db.query(
-            `SELECT admin_mobile FROM app_version WHERE app_id = 3 AND app_name = "STUD"`
-        );
-
-        const isAdmin = adminRows[0]?.admin_mobile === mobile_no;
+        const isAdmin = mobile_no === config.admin.mobile;
 
         // ── Admin flow — skip student selection, go straight to impersonation ────
         if (isAdmin) {
@@ -207,6 +204,7 @@ async function verifyOtp(req, res) {
                 user_id: student.id,
                 name: student.stud_name,
                 mobile: student.stud_mobile,
+                // Bypass mobiles are test/review accounts (e.g. App Store).
                 role: otpSvc.isBypassMobile(mobile_no) ? "DummyUser" : "student",
                 app: "student",
             };

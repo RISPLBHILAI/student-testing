@@ -36,31 +36,25 @@ router.get("/get-students-current-mobile", auth(), sessionCtrl.getStudentsForCur
 // POST /auth/logout
 router.post("/logout", auth(), async (req, res) => {
   try {
-    const empId    = req.user.user_id;
+    const studId   = req.user.user_id;
     const rawToken = req.cookies?.refresh_token || req.body?.refresh_token;
 
     if (!IS_DEV) {
       if (rawToken) await tokenSvc.revokeRefreshToken(rawToken);
 
+      // Only the student's own row — fcm_id_record is shared with employees.
       await db.query(
-          `DELETE FROM emp_fcm_tokens WHERE emp_id = ?`,
-          [empId]
-      );
-
-      await db.query(
-          `UPDATE emp_app_sessions
-         SET is_active = 0, logout_at = NOW()
-         WHERE emp_id = ? AND is_active = 1
-         ORDER BY id DESC LIMIT 1`,
-          [empId]
+          `DELETE FROM notification_portal.fcm_id_record
+           WHERE stud_id = ? AND panel = 'STUD'`,
+          [studId]
       );
     }
 
     res.clearCookie("refresh_token", { path: "/auth" });
-    logger.info(`[Auth:emp] Logout → emp_id=${empId}`);
+    logger.info(`[Auth:student] Logout → stud_id=${studId}`);
     return sendSuccess(res, null, "Logged out successfully");
   } catch (err) {
-    logger.error(`[Auth:emp] Logout error: ${err.message}`);
+    logger.error(`[Auth:student] Logout error: ${err.message}`);
     return sendError(res, "Logout failed", 500);
   }
 });

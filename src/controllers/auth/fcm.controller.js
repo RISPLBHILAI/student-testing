@@ -113,18 +113,21 @@ async function saveFcmToken(req, res) {
 }
 // ─── DELETE /auth/fcm ─────────────────────────────────────────────────────────
 async function deleteFcmToken(req, res) {
-    const emp_id = req.user.user_id;
+    const stud_id = req.user.user_id;
 
     try {
+        // Only the student's own row — fcm_id_record is shared with employees.
         await db.query(
-            `DELETE FROM notification_portal.fcm_id_record WHERE emp_id = ?`,
-            [emp_id]
+            `DELETE FROM notification_portal.fcm_id_record
+             WHERE stud_id = ?
+               AND panel = 'STUD'`,
+            [stud_id]
         );
 
-        logger.debug(`[FCM:emp] Token deleted for emp_id=${emp_id}`);
+        logger.debug(`[FCM] Token deleted for stud_id=${stud_id}`);
         return sendSuccess(res, null, "FCM token removed");
     } catch (err) {
-        logger.error(`[FCM:emp] Delete error for emp_id=${emp_id}: ${err.message}`);
+        logger.error(`[FCM] Delete error for stud_id=${stud_id}: ${err.message}`);
         return sendError(res, "Failed to remove FCM token", 500);
     }
 }

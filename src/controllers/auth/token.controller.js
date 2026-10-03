@@ -1,5 +1,6 @@
 const db       = require("../../../../shared/db/mysql");
 const jwt = require("jsonwebtoken");
+const otpSvc   = require("../../../../shared/services/otpService");
 const tokenSvc = require("../../../../shared/services/tokenService");
 const logger   = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
@@ -14,14 +15,15 @@ async function refresh(req, res) {
             return sendError(res, "Refresh token missing", 401);
         }
 
-        // ── DEV: skip DB, just issue new access token ─────────────────────────
+        // ── DEV: refresh tokens aren't persisted in dev (see otp.controller),
+        //    so just issue a new student access token ──────────────────────────
         if (IS_DEV) {
             const accessToken = tokenSvc.generateAccessToken({
                 user_id: parseInt(process.env.DEV_USER_ID || "1"),
-                name:    process.env.DEV_USER_NAME         || "Dev Admin",
+                name:    process.env.DEV_USER_NAME         || "Dev Student",
                 mobile:  "0000000000",
-                role:    "Employee",
-                app:     "emp",
+                role:    "student",
+                app:     "student",
             });
             return sendSuccess(res, {
                 access_token: accessToken,
@@ -33,44 +35,45 @@ async function refresh(req, res) {
         // ── PRODUCTION: verify + rotate ───────────────────────────────────────
         const { newRawToken, userId } = await tokenSvc.verifyAndRotateRefreshToken({
             rawToken,
-            app:       "emp",
+            app:       "student",
             ip:        req.ip,
             userAgent: req.headers["user-agent"],
         });
 
-        // Fetch fresh employee data (role/status may have changed)
+        // Fetch fresh student data (status may have changed since login)
         const [rows] = await db.query(
             `SELECT
-                 emp_id    AS user_id,
-                 emp_name  AS name,
-                 emp_mono  AS mobile,
-                 enable_status,
-                 erp_login_status
-             FROM employee_master
-             WHERE emp_id = ?
-                 LIMIT 1`,
+                 id          AS user_id,
+                 stud_name   AS name,
+                 stud_mobile AS mobile,
+                 current_status
+             FROM tblstud_profile
+             WHERE id = ?
+             LIMIT 1`,
             [userId]
         );
 
         if (!rows.length) {
-            return sendError(res, "Employee not found", 401);
+            await tokenSvc.revokeAllUserTokens(userId, "student");
+            return sendError(res, "Student not found", 401);
         }
 
-        const emp = rows[0];
+        const stud = rows[0];
 
-        // Check account is still active
-        if (emp.enable_status !== "1" || emp.erp_login_status !== "1") {
-            // Revoke all tokens — account deactivated
-            await tokenSvc.revokeAllUserTokens(userId, "emp");
-            return sendError(res, "Account has been deactivated — please contact HR", 403);
+        // Same eligibility rule as login (findStudentByMobile)
+        if (!["regular", "x_regular"].includes(stud.current_status)) {
+            await tokenSvc.revokeAllUserTokens(userId, "student");
+            return sendError(res, "Your account is no longer active — please contact the college", 403);
         }
 
+        // Same payload shape as the OTP login
         const accessToken = tokenSvc.generateAccessToken({
-            user_id: emp.user_id,
-            name:    emp.name,
-            mobile:  emp.mobile,
-            role:    "Employee",
-            app:     "emp",
+            user_id: stud.user_id,
+            name:    stud.name,
+            mobile:  stud.mobile,
+            // Same as login. Admin access is the separate isAdmin token, never a role here.
+            role:    otpSvc.isBypassMobile(stud.mobile) ? "DummyUser" : "student",
+            app:     "student",
         });
 
         // Set new refresh token in httpOnly cookie
@@ -82,7 +85,7 @@ async function refresh(req, res) {
             path:     "/auth",
         });
 
-        logger.debug(`[Token:emp] Refreshed for emp_id=${emp.user_id}`);
+        logger.debug(`[Token:student] Refreshed for stud_id=${stud.user_id}`);
 
         return sendSuccess(res, {
             access_token:  accessToken,
@@ -94,7 +97,7 @@ async function refresh(req, res) {
         if (err.statusCode) {
             return sendError(res, err.message, err.statusCode);
         }
-        logger.error(`[Token:emp] Refresh error: ${err.message}`);
+        logger.error(`[Token:student] Refresh error: ${err.message}`);
         return sendError(res, "Token refresh failed", 500);
     }
 }
