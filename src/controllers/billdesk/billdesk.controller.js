@@ -305,7 +305,7 @@ async function createOrder(req, res) {
             selectedMonths, total_months_pay,
         } = req.body;
 
-        console.log("REQ BODY", req.body);
+        // console.log("REQ BODY", req.body);
 
         const studentId = req.user.user_id || reqStudentId;
 

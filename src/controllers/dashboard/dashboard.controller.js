@@ -6,6 +6,11 @@ const Timetable = require('../../models/Timetable');
 // Prefix for event_master.banner_path (stored as a relative path). No trailing slash.
 const EVENT_BANNER_BASE_URL = "https://myrungta.com/erp/StudentPanel/events";
 
+// Manual override: when set, this image is used as image_url for every open event.
+// Set to "" (or null) to go back to using banner_path from the database.
+const EVENT_IMAGE_URL_OVERRIDE =
+    "https://myrungta.com/erp/StudentPanel/events/assets/images/garba_16.jpeg";
+
 // Open events for the dashboard banner, shaped to match the app's
 // DashboardEvent type. A failure here must not break the whole dashboard.
 async function getOpenEvents() {
@@ -29,9 +34,11 @@ async function getOpenEvents() {
             slug: e.event_slug,
             date: e.event_date,
             location: e.venue || null,
-            image_url: e.banner_path
-                ? `${EVENT_BANNER_BASE_URL}/${e.banner_path.replace(/^\/+/, "")}`
-                : null,
+            image_url:
+                EVENT_IMAGE_URL_OVERRIDE ||
+                (e.banner_path
+                    ? `${EVENT_BANNER_BASE_URL}/${e.banner_path.replace(/^\/+/, "")}`
+                    : null),
             is_active: 1,
         }));
     } catch (err) {
