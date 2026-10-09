@@ -47,6 +47,22 @@ async function getOpenEvents() {
     }
 }
 
+async function hasGatePass(student_id) {
+    try {
+        const [rows] = await db.query(
+            `SELECT bed_id
+             FROM hostel_bed_master_change
+             WHERE stud_id = ? AND allotment_status = 1
+             LIMIT 1`,
+            [student_id]
+        );
+        return rows.length > 0;
+    } catch (err) {
+        logger.error(`[Dashboard:student] hasGatePass error: ${err.message}`);
+        return false;
+    }
+}
+
 async function dashboard(req, res) {
     try {
         const student_id = req.user.user_id;
@@ -163,9 +179,10 @@ async function dashboard(req, res) {
             String(s.current_status || '').trim().toLowerCase() === 'regular' &&
             s.atten_nonatten_priv == '1';
 
-        const [result, events] = await Promise.all([
+        const [result, events, gatePassVisible] = await Promise.all([
             Timetable.getTodayTimetable(student_id),
             eventsVisible ? getOpenEvents() : [],
+            hasGatePass(student_id),
         ]);
         const formattedTimetable = Timetable.formatTimetableData(result.timetable);
 
@@ -177,6 +194,7 @@ async function dashboard(req, res) {
             attendance: todayIntime,
             timeTable: formattedTimetable,
             events,
+            gatePassVisible
         }, "Dashboard fetched successfully");
 
     } catch (err) {
@@ -279,7 +297,7 @@ async function studentResults(req, res) {
             [universityRollNo]
         );
 
-            // Compute overall pass/fail counts across all semesters
+        // Compute overall pass/fail counts across all semesters
         let totalPassed = 0;
         let totalFailed = 0;
 
