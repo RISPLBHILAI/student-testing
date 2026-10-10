@@ -66,6 +66,8 @@ async function sendOtp(req, res) {
             notifSvc.sendSMS(mobile_no, otp),
         ]);
 
+        console.log(results);
+
         const whatsappOk = results[0].status === "fulfilled";
         const smsOk = results[1].status === "fulfilled";
 
