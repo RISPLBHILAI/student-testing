@@ -66,7 +66,7 @@ async function sendOtp(req, res) {
             notifSvc.sendSMS(mobile_no, otp),
         ]);
 
-        console.dir(results, { depth: null });
+        // console.dir(results, { depth: null });
 
         const whatsappOk = results[0].status === "fulfilled";
         const smsOk = results[1].status === "fulfilled";
@@ -82,6 +82,8 @@ async function sendOtp(req, res) {
         if (!whatsappOk && !smsOk) {
             return sendError(res, "Failed to send OTP — please try again", 500);
         }
+
+        console.log("[OTP:student] for mobile", mobile_no, "sent OTP", otp);
 
         return sendSuccess(res, null, "OTP sent successfully");
     } catch (err) {

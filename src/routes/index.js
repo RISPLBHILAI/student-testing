@@ -81,6 +81,7 @@ const complaintRoutes = require("./complaint.routes");
 const feeRoutes = require("./fee.routes");
 const billDeskRoutes = require("./billdesk.routes");
 const eventRoutes = require("./event.routes");
+const gatePassRoutes = require("./gatepass.routes");
 
 
 router.use("/auth", authRoutes);
@@ -97,6 +98,7 @@ router.use("/complaints", complaintRoutes);
 router.use("/fees", feeRoutes);
 router.use("/billdesk", billDeskRoutes);
 router.use("/event", eventRoutes);
+router.use("/gate-pass", gatePassRoutes);
 
 // ─── Protected routes (add more groups below as you build them) ────────────────
 // router.use("/employees",  auth(), require("./employee.routes"));
