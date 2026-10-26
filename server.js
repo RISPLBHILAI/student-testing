@@ -37,6 +37,7 @@ const cookieParser = require("cookie-parser");
 
 const { globalLimiter } = require("../shared/middlewares/rateLimiter");
 const { notFound, errorHandler } = require("../shared/middlewares/errorHandler");
+const { errorNotifier, captureError } = require("./src/middlewares/errorNotifier");
 const routes = require("./src/routes");
 
 const app = express();
@@ -106,11 +107,15 @@ if (config.app.isDev) {
 // Global rate limiter (no-op in dev)
 app.use(globalLimiter);
 
+// Report failed requests to the Error Notification app
+app.use(errorNotifier);
+
 // ─── 5. Routes ────────────────────────────────────────────────────────────────
 app.use("/api/student", routes);
 
 // ─── 6. Error handlers (must be last) ────────────────────────────────────────
 app.use(notFound);
+app.use(captureError);
 app.use(errorHandler);
 
 // ─── 7. Start server ──────────────────────────────────────────────────────────
