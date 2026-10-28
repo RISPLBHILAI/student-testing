@@ -11,6 +11,7 @@ const otpCtrl   = require("../controllers/auth/otp.controller");
 const tokenCtrl = require("../controllers/auth/token.controller");
 const fcmCtrl   = require("../controllers/auth/fcm.controller");
 const sessionCtrl   = require("../controllers/auth/session.controller");
+const versionCtrl   = require("../controllers/auth/version.controller");
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -18,6 +19,7 @@ const IS_DEV = process.env.NODE_ENV === "development";
 router.post("/send-otp",   otpLimiter,  otpCtrl.sendOtp);
 router.post("/verify-otp", authLimiter, otpCtrl.verifyOtp);
 router.post("/refresh",                 tokenCtrl.refresh);
+router.get ("/check-version",           versionCtrl.checkVersion);
 
 // ─── Protected ────────────────────────────────────────────────────────────────
 router.post  ("/fcm", auth(), fcmCtrl.saveFcmToken);
@@ -30,8 +32,6 @@ router.post("/should-show-welcome", sessionCtrl.shouldShowWelcome);
 router.post("/mark-welcome-seen", sessionCtrl.markWelcomeSeen);
 router.post("/select-student", auth(), sessionCtrl.selectStudent);
 router.get("/get-students-current-mobile", auth(), sessionCtrl.getStudentsForCurrentMobile);
-
-// router.get('/check-version', sessionCtrl.checkAppVersion);
 
 // POST /auth/logout
 router.post("/logout", auth(), async (req, res) => {

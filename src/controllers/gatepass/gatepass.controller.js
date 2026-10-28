@@ -29,7 +29,7 @@ const MIN_REASON_LENGTH = 10;
 const MAX_REASON_LENGTH = 300;
 // Warden designations — keep in step with STUDENT_GATE_PASS_APPROVER_DES_IDS
 // in the emp app's earlyLeave.controller.js.
-const WARDEN_DES_IDS = [634, 648];
+const WARDEN_DES_IDS = [634, 648, 647];
 // Must match the emp app's EARLY_LEAVE_QR_TTL_MIN — that's where it is enforced.
 const QR_TTL_SEC = parseInt(process.env.EARLY_LEAVE_QR_TTL_MIN || "10", 10) * 60;
 
