@@ -14,7 +14,7 @@
  *                                           force_update says (optional)
  *   force_update                            1 = compulsory, 0 = user can skip
  *   update_title, update_message            screen heading + text   (optional)
- *   whats_new                               release notes, one per line (optional)
+ *   whats_new                               release notes, one per line or a JSON array (optional)
  *   store_url_android / store_url_ios       store listing links     (optional)
  * Optional columns that are NULL or not created yet fall back to the app's defaults.
  */
@@ -25,14 +25,20 @@ const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
 // The student app's row in app_version (CRM is 1 / 'CRM', EMP is 2 / 'EMP')
 const APP_ID = 3;
-const APP_NAME = "STUDENT";
+const APP_NAME = "STUD";
 
-// "• Fixed X\n- Added Y" → ["Fixed X", "Added Y"]
-const toLines = (text) =>
-    String(text || "")
+// '["Fixed X", "Added Y"]' or "• Fixed X" / "- Added Y" on separate lines
+// → ["Fixed X", "Added Y"]
+const toLines = (text) => {
+    try {
+        const arr = JSON.parse(text);
+        if (Array.isArray(arr)) return arr.map((l) => String(l).trim()).filter(Boolean);
+    } catch { /* plain text */ }
+    return String(text || "")
         .split(/\r?\n/)
         .map((l) => l.replace(/^\s*[•\-*]\s*/, "").trim())
         .filter(Boolean);
+};
 
 async function checkVersion(req, res) {
     const ios = req.query.platform === "ios";
