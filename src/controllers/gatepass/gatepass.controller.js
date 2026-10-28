@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
+const { notify } = require("../../../../shared/services/notificationService");
 
 // Student gate pass. Lives in the employees' early_leave_request table
 // (user_type = 'student') so the guard scans both with the same emp-app
@@ -14,7 +15,10 @@ const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 //   date        = first valid day,  to_date = last valid day
 //   out_time    = '00:00'     (employees pick a time; students don't)
 //   request_type= 'Personal'  (unused — user_type is what identifies the row)
-//   hod/hoi/hr  = 'Approved'  (issued instantly, no approval step)
+//   hod_status  = 'Pending'   until a warden (emp app, designation 634 / 648)
+//                             approves or rejects it; hod_id / hod_remark hold
+//                             who decided and why. QR only once Approved.
+//   hoi/hr      = 'Pending'   (unused for students)
 //   will_return = 1           (one pass = scan out, then scan back in)
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -23,6 +27,9 @@ const MAX_PASS_DAYS = 30;
 // Keep in step with the app's limits in app/(dashboard)/gate-pass.tsx.
 const MIN_REASON_LENGTH = 10;
 const MAX_REASON_LENGTH = 300;
+// Warden designations — keep in step with STUDENT_GATE_PASS_APPROVER_DES_IDS
+// in the emp app's earlyLeave.controller.js.
+const WARDEN_DES_IDS = [634, 648];
 // Must match the emp app's EARLY_LEAVE_QR_TTL_MIN — that's where it is enforced.
 const QR_TTL_SEC = parseInt(process.env.EARLY_LEAVE_QR_TTL_MIN || "10", 10) * 60;
 
@@ -63,13 +70,41 @@ const PASS_COLUMNS = `
     DATE_FORMAT(date, '%Y-%m-%d') AS from_date,
     DATE_FORMAT(COALESCE(to_date, date), '%Y-%m-%d') AS to_date,
     reason,
+    hod_status,
+    hod_remark,
     DATE_FORMAT(created_on, ${IST_ISO}) AS created_at,
     DATE_FORMAT(gate_out_time, ${IST_ISO}) AS gate_out_time,
     DATE_FORMAT(gate_in_time, ${IST_ISO}) AS gate_in_time`;
 
-// "active" until scanned out, "out" until scanned back in. A pass that has
-// been scanned in is finished and no longer returned.
-const formatPass = (row) => ({ ...row, status: row.gate_out_time ? "out" : "active" });
+// "pending" until a warden approves it (or "rejected"), then "active" until
+// scanned out, "out" until scanned back in. A pass that has been scanned in is
+// finished and no longer returned.
+function passStatus(row) {
+    if (row.gate_out_time) return "out";
+    if (row.hod_status === "Rejected") return "rejected";
+    if (row.hod_status !== "Approved") return "pending";
+    return "active";
+}
+const formatPass = ({ hod_status, hod_remark, ...row }) => ({
+    ...row,
+    status: passStatus({ ...row, hod_status }),
+    remark: hod_remark || null,
+});
+
+// Enabled employees holding a warden designation (main or add-on) in their own college.
+async function getWardenEmpIds() {
+    const [rows] = await db.query(
+        `SELECT em.emp_id
+         FROM employee_master em
+         JOIN designation_master_change d
+           ON d.college_id = em.emp_clg_id
+          AND d.des_id IN (em.emp_designation_id, em.emp_addon_designation_id)
+         WHERE em.enable_status = '1' AND d.des_id IN (?)
+         GROUP BY em.emp_id`,
+        [WARDEN_DES_IDS]
+    );
+    return rows.map((r) => r.emp_id);
+}
 
 // The student's current pass: not cancelled, not finished, not past its last day.
 async function findActivePass(studentId, todayIST) {
@@ -104,7 +139,8 @@ async function getActiveGatePass(req, res) {
 
 // ─── POST /gate-pass ──────────────────────────────────────────────────────────
 // Body: { from_date, to_date, reason }  dates "YYYY-MM-DD"
-// Issues the pass immediately and replaces a pass that hasn't been used yet.
+// Requests a pass (pending warden approval) and replaces a pass that hasn't
+// been used yet.
 async function generateGatePass(req, res) {
     try {
         const studentId = req.user.user_id;
@@ -169,15 +205,26 @@ async function generateGatePass(req, res) {
             `INSERT INTO early_leave_request
              (user_type, stud_id, emp_id, date, to_date, out_time, return_time, will_return, reason, request_type,
               hod_status, hoi_status, hr_status, created_on)
-             VALUES ('student', ?, 0, ?, ?, '00:00', NULL, 1, ?, 'Personal', 'Approved', 'Approved', 'Approved', ?)`,
+             VALUES ('student', ?, 0, ?, ?, '00:00', NULL, 1, ?, 'Personal', 'Pending', 'Pending', 'Pending', ?)`,
             [studentId, fromDate, toDate, reason, createdOn]
         );
 
-        logger.info(`[GatePass] Issued → stud_id=${studentId}, id=${result.insertId}`);
+        logger.info(`[GatePass] Requested → stud_id=${studentId}, id=${result.insertId}`);
+
+        getWardenEmpIds()
+            .then((wardenIds) => wardenIds.length && notify({
+                userIds: wardenIds,
+                title: "Student Gate Pass Request",
+                body: `A student has requested a gate pass for ${fromDate === toDate ? fromDate : `${fromDate} to ${toDate}`}.`,
+                sentBy: studentId,
+                data: { screen: "EarlyLeaveApprovals", event_id: String(result.insertId) },
+                logTag: "GatePass",
+            }))
+            .catch((e) => logger.warn(`[GatePass] Warden notification failed: ${e.message}`));
 
         const pass = await findActivePass(studentId, todayIST);
 
-        return sendSuccess(res, { pass }, "Gate pass generated successfully");
+        return sendSuccess(res, { pass }, "Gate pass requested. You can use it once the warden approves it");
 
     } catch (err) {
         logger.error(`[GatePass] generateGatePass error: ${err.message}`);
@@ -226,7 +273,7 @@ async function generateGateQr(req, res) {
             `SELECT id,
                     DATE_FORMAT(date, '%Y-%m-%d') AS from_date,
                     DATE_FORMAT(COALESCE(to_date, date), '%Y-%m-%d') AS to_date,
-                    cancelled_on, gate_in_time
+                    cancelled_on, gate_in_time, hod_status
              FROM early_leave_request
              WHERE id = ? AND user_type = 'student' AND stud_id = ?
              LIMIT 1`,
@@ -236,6 +283,8 @@ async function generateGateQr(req, res) {
         if (!row) return sendError(res, "Gate pass not found", 404);
         if (row.cancelled_on) return sendError(res, "This gate pass was replaced by a newer one", 400);
         if (row.gate_in_time) return sendError(res, "This gate pass has already been used", 400);
+        if (row.hod_status === "Rejected") return sendError(res, "This gate pass was rejected by the warden", 403);
+        if (row.hod_status !== "Approved") return sendError(res, "This gate pass is awaiting warden approval", 403);
         if (todayIST < row.from_date) {
             return sendError(res, `This gate pass is valid from ${row.from_date}`, 403);
         }
