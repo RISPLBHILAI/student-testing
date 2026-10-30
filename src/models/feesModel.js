@@ -1560,8 +1560,9 @@ WHERE
 
                 // Fee and fine are settled separately, per head, so a paid fine can only reduce the fine owed
                 const totalApplicableFee = academicFee + scholarshipFee;
-                const totalPaid = academicPaid + scholarshipPaid;
-                const feeRemaining = Math.max(0, totalApplicableFee - totalPaid);
+                const feePaid = academicPaid + scholarshipPaid;
+                const totalPaid = feePaid + academicFinePaid + totalFinePaidSch;
+                const feeRemaining = Math.max(0, totalApplicableFee - feePaid);
                 const fineRemaining =
                     Math.max(0, academicFineAdded - academicFinePaid) +
                     Math.max(0, scholarshipFineAdded - totalFinePaidSch);
