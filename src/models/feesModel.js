@@ -1321,6 +1321,10 @@ WHERE
             let totalFinePaidSch = 0;
             let scholarshipDueDate = null;
 
+            // Fine applied today, tracked separately from the fee so a paid fine never offsets the fee
+            let academicFineAdded = 0;
+            let scholarshipFineAdded = 0;
+
             const feesApplicable = [];
             const fineApplicableArr = [];
             const finePaidArr = [];
@@ -1429,7 +1433,8 @@ WHERE
                             }
 
                             academicApplicableFine = fineData.total_fine;
-                            academicFee += academicApplicableFine;
+                            // academicFee += academicApplicableFine;
+                            academicFineAdded = academicApplicableFine;
 
                             fineApplicableArr.push({
                                 fine_amt: academicApplicableFine,
@@ -1464,8 +1469,10 @@ WHERE
                         academicApplicableFine = 0;
                     }
 
-                    academicFee += parseFloat(academicApplicableFine);
-                    scholarshipFee += parseFloat(scholarshipApplicableFine);
+                    // academicFee += parseFloat(academicApplicableFine);
+                    // scholarshipFee += parseFloat(scholarshipApplicableFine);
+                    academicFineAdded = parseFloat(academicApplicableFine) || 0;
+                    scholarshipFineAdded = parseFloat(scholarshipApplicableFine) || 0;
 
                     fineApplicableArr.push({ fine_amt: academicApplicableFine, fine_applied_on: 'tution_fee' });
                     fineApplicableArr.push({ fine_amt: scholarshipApplicableFine, fine_applied_on: 'scholarship_fee' });
@@ -1478,7 +1485,8 @@ WHERE
                         if (greaterDate === todayDate) {
                             const fineData = this.calculateFine(25, scholarshipDueDate, greaterDate, 'scholarship_fee');
                             scholarshipApplicableFine = fineData.total_fine;
-                            scholarshipFee += scholarshipApplicableFine;
+                            // scholarshipFee += scholarshipApplicableFine;
+                            scholarshipFineAdded = scholarshipApplicableFine;
 
                             fineApplicableArr.push({
                                 fine_amt: scholarshipApplicableFine,
@@ -1508,7 +1516,8 @@ WHERE
                                     fineData = this.calculateFine(10, finalDueDate, greaterDate, 'tution_fee');
                                 }
                                 academicApplicableFine = fineData.total_fine;
-                                academicFee += academicApplicableFine;
+                                // academicFee += academicApplicableFine;
+                                academicFineAdded = academicApplicableFine;
 
                                 fineApplicableArr.push({
                                     fine_amt: academicApplicableFine,
@@ -1520,7 +1529,8 @@ WHERE
                             } else if (finalDueDate === scholarshipDueDate) {
                                 const fineData = this.calculateFine(25, finalDueDate, greaterDate, 'scholarship_fee');
                                 scholarshipApplicableFine = fineData.total_fine;
-                                scholarshipFee += scholarshipApplicableFine;
+                                // scholarshipFee += scholarshipApplicableFine;
+                                scholarshipFineAdded = scholarshipApplicableFine;
 
                                 fineApplicableArr.push({
                                     fine_amt: scholarshipApplicableFine,
@@ -1538,13 +1548,32 @@ WHERE
                 }
 
                 // Calculate totals for non-installment mode
+                // const totalApplicableFee = academicFee + scholarshipFee;
+                // const totalPaid = academicPaid + academicFinePaid + scholarshipPaid + totalFinePaidSch;
+                // const totalRemaining = Math.max(0, totalApplicableFee - totalPaid);
+                //
+                // totalArr.push({
+                //     total_applicable_fee: totalApplicableFee,
+                //     total_paid: totalPaid,
+                //     total_remaining: totalRemaining
+                // });
+
+                // Fee and fine are settled separately, per head, so a paid fine can only reduce the fine owed
                 const totalApplicableFee = academicFee + scholarshipFee;
-                const totalPaid = academicPaid + academicFinePaid + scholarshipPaid + totalFinePaidSch;
-                const totalRemaining = Math.max(0, totalApplicableFee - totalPaid);
+                const totalPaid = academicPaid + scholarshipPaid;
+                const feeRemaining = Math.max(0, totalApplicableFee - totalPaid);
+                const fineRemaining =
+                    Math.max(0, academicFineAdded - academicFinePaid) +
+                    Math.max(0, scholarshipFineAdded - totalFinePaidSch);
+                const totalRemaining = feeRemaining + fineRemaining;
 
                 totalArr.push({
                     total_applicable_fee: totalApplicableFee,
                     total_paid: totalPaid,
+                    total_fine: academicFineAdded + scholarshipFineAdded,
+                    total_fine_paid: academicFinePaid + totalFinePaidSch,
+                    fee_remaining: feeRemaining,
+                    fine_remaining: fineRemaining,
                     total_remaining: totalRemaining
                 });
             } else {
