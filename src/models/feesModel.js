@@ -1565,7 +1565,8 @@ WHERE
                 const fineIncurred =
                     Math.max(academicFineAdded, academicFinePaid) +
                     Math.max(scholarshipFineAdded, totalFinePaidSch);
-                const totalApplicableFee = feeApplicable + fineIncurred;
+                // const totalApplicableFee = feeApplicable + fineIncurred;
+                const totalApplicableFee = feeApplicable;
                 const totalPaid = feePaid + academicFinePaid + totalFinePaidSch;
                 const feeRemaining = Math.max(0, feeApplicable - feePaid);
                 const fineRemaining =
