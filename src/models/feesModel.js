@@ -1559,10 +1559,15 @@ WHERE
                 // });
 
                 // Fee and fine are settled separately, per head, so a paid fine can only reduce the fine owed
-                const totalApplicableFee = academicFee + scholarshipFee;
+                const feeApplicable = academicFee + scholarshipFee;
                 const feePaid = academicPaid + scholarshipPaid;
+                // Fine is cumulative from the due date, so the larger of today's fine and fine already paid is the fine incurred
+                const fineIncurred =
+                    Math.max(academicFineAdded, academicFinePaid) +
+                    Math.max(scholarshipFineAdded, totalFinePaidSch);
+                const totalApplicableFee = feeApplicable + fineIncurred;
                 const totalPaid = feePaid + academicFinePaid + totalFinePaidSch;
-                const feeRemaining = Math.max(0, totalApplicableFee - feePaid);
+                const feeRemaining = Math.max(0, feeApplicable - feePaid);
                 const fineRemaining =
                     Math.max(0, academicFineAdded - academicFinePaid) +
                     Math.max(0, scholarshipFineAdded - totalFinePaidSch);
@@ -1571,7 +1576,7 @@ WHERE
                 totalArr.push({
                     total_applicable_fee: totalApplicableFee,
                     total_paid: totalPaid,
-                    total_fine: academicFineAdded + scholarshipFineAdded,
+                    total_fine: fineIncurred,
                     total_fine_paid: academicFinePaid + totalFinePaidSch,
                     fee_remaining: feeRemaining,
                     fine_remaining: fineRemaining,
