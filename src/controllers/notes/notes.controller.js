@@ -4,57 +4,141 @@ const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
 const NOTES_BASE_URL = 'https://myrungta.com/erp/adminpanel/notes/';
 
+async function getStudentAcademics(studentId) {
+    const [rows] = await db.query(
+        `SELECT
+            clg_id,
+            cor_id,
+            branch_id,
+            sem_year_id AS sem_id
+         FROM stud_current_sem_year
+         WHERE stud_id = ?`,
+        [studentId]
+    );
+    return rows[0] || null;
+}
+
+function formatNote(note) {
+    // Older code read the file from either `file_name` or `notes_file`; support both.
+    const fileName = note.file_name || note.notes_file || null;
+
+    return {
+        noteId: note.id,
+        title: note.note_title || note.unitName,
+        unitName: note.unitName,
+        fileName,
+        fileUrl: fileName ? `${NOTES_BASE_URL}${fileName}` : null,
+        driveLink: note.google_drive_link || null,
+        facultyName: note.facultyName,
+        uploadedAt: note.created_at || note.upload_date,
+        description: note.description || ''
+    };
+}
+
 async function notes(req, res) {
     try {
         const studentId = req.user.user_id;
 
         logger.info(`[Notes] Fetching notes for student: ${studentId}`);
 
-        // Get student academic details
-        const [studentRows] = await db.query(
-            `SELECT 
-                clg_id, 
-                cor_id, 
-                branch_id, 
-                sem_year_id AS sem_id
-             FROM stud_current_sem_year
-             WHERE stud_id = ?`,
-            [studentId]
-        );
+        const student = await getStudentAcademics(studentId);
 
-        if (!studentRows.length) {
+        if (!student) {
             return sendError(res, 'Student not found', 404);
         }
 
-        const { clg_id, cor_id, branch_id, sem_id } = studentRows[0];
+        const { clg_id, cor_id, branch_id, sem_id } = student;
 
-        // Fetch drive link
-        const [notes] = await db.query(
-            `SELECT google_drive_link
-             FROM unitwisenotes
-             WHERE clg_id = ?
-               AND cor_id = ?
-               AND branch_id = ?
-               AND sem_id = ?
-               AND notes_type = 1
-               AND delete_status != 1
-             LIMIT 1`,
-            [clg_id, cor_id, branch_id, sem_id]
-        );
+        const [driveResult, notesResult] = await Promise.allSettled([
+            // Drive link (unchanged from the existing behaviour)
+            db.query(
+                `SELECT google_drive_link
+                 FROM unitwisenotes
+                 WHERE clg_id = ?
+                   AND cor_id = ?
+                   AND branch_id = ?
+                   AND sem_id = ?
+                   AND notes_type = 1
+                   AND delete_status != 1
+                 LIMIT 1`,
+                [clg_id, cor_id, branch_id, sem_id]
+            ),
+            // All notes for the student's class, grouped by subject below
+            db.query(
+                `SELECT
+                    unitwisenotes.*,
+                    tblcollege.short_name AS collegeName,
+                    tblcourse.cor_name AS courseName,
+                    tblbranch_subject.branch_sub_name AS branchName,
+                    employee_master.emp_name AS facultyName,
+                    subject_allotment.subject_name AS subjectName,
+                    unitwisenotes.unit_name AS unitName
+                 FROM unitwisenotes
+                 INNER JOIN tblcollege ON tblcollege.id = unitwisenotes.clg_id
+                 INNER JOIN tblcourse ON tblcourse.id = unitwisenotes.cor_id
+                 INNER JOIN tblbranch_subject ON tblbranch_subject.id = unitwisenotes.branch_id
+                 INNER JOIN employee_master ON employee_master.emp_id = unitwisenotes.faculty_id
+                 INNER JOIN subject_to_unit ON subject_to_unit.id = unitwisenotes.unit_id
+                 INNER JOIN subject_allotment ON subject_allotment.id = unitwisenotes.subject_id
+                 WHERE unitwisenotes.clg_id = ?
+                   AND unitwisenotes.cor_id = ?
+                   AND unitwisenotes.branch_id = ?
+                   AND unitwisenotes.sem_id = ?
+                   AND COALESCE(unitwisenotes.delete_status, 0) != 1
+                 ORDER BY subject_allotment.subject_name, unitwisenotes.unit_name, unitwisenotes.id DESC`,
+                [clg_id, cor_id, branch_id, sem_id]
+            )
+        ]);
+
+        // Drive link is the original contract — still fail the request if it errors.
+        if (driveResult.status === 'rejected') {
+            throw driveResult.reason;
+        }
+        const [driveRows] = driveResult.value;
+
+        // The notes list is additive — if it fails, log and return an empty list
+        // so the existing drive_link response keeps working.
+        let noteRows = [];
+        if (notesResult.status === 'fulfilled') {
+            [noteRows] = notesResult.value;
+        } else {
+            logger.error(`[Notes] notes list query failed: ${notesResult.reason?.message}`);
+        }
 
         const driveLink =
-            notes.length > 0 && notes[0].google_drive_link
-                ? notes[0].google_drive_link
+            driveRows.length > 0 && driveRows[0].google_drive_link
+                ? driveRows[0].google_drive_link
                 : '';
 
+        const subjectsMap = new Map();
+        for (const note of noteRows) {
+            if (!subjectsMap.has(note.subject_id)) {
+                subjectsMap.set(note.subject_id, {
+                    subjectId: note.subject_id,
+                    subjectName: note.subjectName,
+                    notes: []
+                });
+            }
+            subjectsMap.get(note.subject_id).notes.push(formatNote(note));
+        }
+
+        const first = noteRows[0];
+
         logger.info(
-            `[Notes] Drive link ${driveLink ? 'found' : 'not found'} for student: ${studentId}`
+            `[Notes] Drive link ${driveLink ? 'found' : 'not found'}, ${noteRows.length} notes for student: ${studentId}`
         );
 
         return sendSuccess(
             res,
             {
-                drive_link: driveLink
+                drive_link: driveLink,
+                student: {
+                    collegeName: first?.collegeName || '',
+                    courseName: first?.courseName || '',
+                    branchName: first?.branchName || ''
+                },
+                subjects: Array.from(subjectsMap.values()),
+                totalNotes: noteRows.length
             },
             'Notes fetched successfully'
         );
@@ -73,17 +157,13 @@ async function notesBySubject(req, res) {
 
         logger.info(`[Notes] Fetching notes for student: ${studentId}, subject: ${subjectId}`);
 
-        const [studentRows] = await db.query(
-            `SELECT clg_id, cor_id, branch_id, sem_year_id AS sem_id 
-             FROM stud_current_sem_year WHERE stud_id = ?`,
-            [studentId]
-        );
+        const student = await getStudentAcademics(studentId);
 
-        if (studentRows.length === 0) {
+        if (!student) {
             return sendError(res, 'Student not found', 404);
         }
 
-        const { clg_id, cor_id, branch_id, sem_id } = studentRows[0];
+        const { clg_id, cor_id, branch_id, sem_id } = student;
 
         const [notes] = await db.query(
             `SELECT
@@ -100,20 +180,12 @@ async function notesBySubject(req, res) {
                AND unitwisenotes.branch_id = ?
                AND unitwisenotes.sem_id = ?
                AND unitwisenotes.subject_id = ?
+               AND COALESCE(unitwisenotes.delete_status, 0) != 1
              ORDER BY unitwisenotes.unit_name, unitwisenotes.id DESC`,
             [clg_id, cor_id, branch_id, sem_id, subjectId]
         );
 
-        const formattedNotes = notes.map(note => ({
-            noteId: note.id,
-            title: note.note_title || note.unitName,
-            unitName: note.unitName,
-            fileName: note.file_name,
-            fileUrl: note.file_name ? `${NOTES_BASE_URL}${note.file_name}` : null,
-            facultyName: note.facultyName,
-            uploadedAt: note.created_at || note.upload_date,
-            description: note.description || ''
-        }));
+        const formattedNotes = notes.map(formatNote);
 
         logger.info(`[Notes] Found ${formattedNotes.length} notes for subject: ${subjectId}`);
 
