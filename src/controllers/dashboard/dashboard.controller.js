@@ -194,7 +194,7 @@ async function dashboard(req, res) {
             attendance: todayIntime,
             timeTable: formattedTimetable,
             events,
-            gatePassVisible
+            // gatePassVisible
         }, "Dashboard fetched successfully");
 
     } catch (err) {

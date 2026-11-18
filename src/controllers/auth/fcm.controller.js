@@ -1,24 +1,42 @@
 /**
- * emp/src/controllers/auth/fcm.controller.js
+ * student/src/controllers/auth/fcm.controller.js
  * ────────────────────────────────────────────
  * Save FCM token after login, delete on logout.
  *
- * POST /api/emp/auth/fcm        → save/update token (protected)
- * DELETE /api/emp/auth/fcm      → delete token on logout (protected)
+ * POST /api/student/auth/fcm        → save/update token (protected)
+ * DELETE /api/student/auth/fcm      → delete token on logout (protected)
  */
 
 const db = require("../../../../shared/db/mysql");
 const logger = require("../../../../shared/utils/logger");
 const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
+// Only Expo push tokens are valid (same rule as the EMP app). A raw native
+// device token (64-char APNs hex on iOS, "xxx:APA91b..." FCM on Android) would
+// overwrite the good Expo token and silently stop notifications.
+const EXPO_PUSH_TOKEN_RE = /^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$/;
+
 // ─── POST /auth/fcm ───────────────────────────────────────────────────────────
 async function saveFcmToken(req, res) {
-    const { token, deviceType } = req.body;
+    // New builds send `fcm_token` (same as EMP); older builds send `token`
+    const raw = req.body.fcm_token ?? req.body.token;
+    const token = typeof raw === "string" ? raw.trim() : "";
+    const { deviceType, app_version } = req.body;
 
     const stud_id = req.user.user_id;
 
     if (!token) {
         return sendError(res, "FCM token is required", 400);
+    }
+
+    // Reject non-Expo tokens WITHOUT touching the stored value.
+    // Must be 422 (not 401) — a 401 makes the app attempt a refresh / force logout.
+    if (!EXPO_PUSH_TOKEN_RE.test(token)) {
+        logger.warn(
+            `[FCM:student] Rejected non-Expo token for stud_id=${stud_id} ` +
+            `(len=${token.length}, device=${deviceType || "-"}, app_version=${app_version || "-"})`
+        );
+        return sendError(res, "Invalid push token format", 422);
     }
 
     try {
@@ -53,10 +71,11 @@ async function saveFcmToken(req, res) {
                     user_type,
                     stud_id,
                     device_type,
+                    app_version,
                     created_on,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                 `,
                 [
                     'STUD',
@@ -64,7 +83,8 @@ async function saveFcmToken(req, res) {
                     'EXPO',
                     'student',
                     stud_id,
-                    deviceType
+                    deviceType,
+                    app_version || null
                 ]
             );
 
@@ -84,6 +104,7 @@ async function saveFcmToken(req, res) {
                 SET
                     expo_push_token = ?,
                     device_type = ?,
+                    app_version = ?,
                     push_provider = 'EXPO',
                     updated_at = NOW()
                 WHERE
@@ -93,6 +114,7 @@ async function saveFcmToken(req, res) {
                 [
                     token,
                     deviceType,
+                    app_version || null,
                     stud_id
                 ]
             );

@@ -4,6 +4,12 @@ const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
 const NOTES_BASE_URL = 'https://myrungta.com/erp/adminpanel/notes/';
 
+// Hardcoded session-wide notes folders (same for every student).
+// ODD (current) semester notes, 2026-27 session
+const ODD_SESSION_DRIVE_LINK = 'https://drive.google.com/drive/folders/1hsQ4ipvvZ5d_VnkcaAAPUACeRoVCgSDo?usp=drive_link';
+// EVEN semester notes, 2025-26 session
+const EVEN_SESSION_DRIVE_LINK = 'https://drive.google.com/drive/folders/1qSjmO433EPOT4BXJurSiIOW76A8KPWzK?usp=drive_link';
+
 async function getStudentAcademics(studentId) {
     const [rows] = await db.query(
         `SELECT
@@ -132,6 +138,8 @@ async function notes(req, res) {
             res,
             {
                 drive_link: driveLink,
+                odd_session_drive_link: ODD_SESSION_DRIVE_LINK,
+                even_session_drive_link: EVEN_SESSION_DRIVE_LINK,
                 student: {
                     collegeName: first?.collegeName || '',
                     courseName: first?.courseName || '',
