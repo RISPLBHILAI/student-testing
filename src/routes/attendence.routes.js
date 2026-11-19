@@ -37,5 +37,12 @@ router.get(
     AttendenceCtrl.monthlyAttendence
 );
 
+// Get lecture-wise attendance details for a single day (?date=YYYY-MM-DD)
+router.get(
+    '/lectures',
+    auth(),
+    AttendenceCtrl.lectureDetails
+);
+
 
 module.exports = router;

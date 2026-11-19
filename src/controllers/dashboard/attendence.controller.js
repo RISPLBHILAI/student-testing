@@ -647,10 +647,101 @@ async function monthlyAttendence(req, res) {
     }
 }
 
+// Lecture-wise attendance details for a single day (subject, time, who marked it)
+async function lectureDetails(req, res) {
+    try {
+        const studentId = req.user.user_id;
+        const { date } = req.query;
+
+        if (!studentId) {
+            return sendError(res, 'Student not registered. Attendance information not available.', 400);
+        }
+
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date).getTime())) {
+            return sendError(res, 'Valid date is required (YYYY-MM-DD)', 400);
+        }
+
+        logger.info(`[Attendance] Fetching lecture details for student: ${studentId}, date: ${date}`);
+
+        const [currentSemRows] = await db.query(
+            'SELECT clg_id, cor_id, branch_id, sem_year_id FROM stud_current_sem_year WHERE stud_id = ? LIMIT 1',
+            [studentId]
+        );
+
+        if (currentSemRows.length === 0) {
+            return sendError(res, 'Student semester information not found', 400);
+        }
+
+        const { clg_id, cor_id, branch_id, sem_year_id } = currentSemRows[0];
+
+        const [sessionRows] = await db.query(
+            `SELECT session FROM all_active_semester_year
+             WHERE clg_id = ? AND cor_id = ? AND branch_id = ? AND sem_id = ? AND active_status = '1'
+             LIMIT 1`,
+            [clg_id, cor_id, branch_id, sem_year_id]
+        );
+
+        if (sessionRows.length === 0) {
+            return sendError(res, 'Active semester session not found', 400);
+        }
+
+        const { session } = sessionRows[0];
+
+        const [lectureRows] = await db.query(
+            `SELECT
+                cwma.lecture_no,
+                cwma.attendance_time,
+                cwma.attendance_status,
+                cwma.attendance_type,
+                cwma.lecture_type,
+                sa.subject_name,
+                sa.subject_type,
+                em.emp_name AS marked_by
+             FROM class_wise_manual_attendance cwma
+             LEFT JOIN employee_master em ON em.emp_id = cwma.created_by
+             LEFT JOIN subject_allotment sa ON sa.id = cwma.subject_id
+             WHERE cwma.stud_id = ? AND DATE(cwma.attendance_date) = ? AND cwma.session = ?
+             ORDER BY cwma.lecture_no ASC`,
+            [studentId, date, session]
+        );
+
+        const lectures = lectureRows.map(row => ({
+            lectureNo: row.lecture_no,
+            time: row.attendance_time,
+            status: row.attendance_status,
+            attendanceType: row.attendance_type,
+            lectureType: row.lecture_type,
+            subjectName: row.subject_name,
+            subjectType: row.subject_type,
+            markedBy: row.marked_by
+        }));
+
+        const present = lectures.filter(l => l.status === 'P').length;
+
+        return sendSuccess(res, {
+            date,
+            summary: {
+                totalLectures: lectures.length,
+                present,
+                absent: lectures.length - present
+            },
+            lectures
+        },
+            "Lecture details retrieved successfully",
+            200
+        );
+
+    } catch (error) {
+        logger.error(`[Attendance] lectureDetails error: ${error.message}`);
+        return sendError(res, "Failed to fetch lecture details", 500);
+    }
+}
+
 module.exports = {
     attendencePercentage,
     todayInTime,
     attendenceData,
     attendenceHistory,
-    monthlyAttendence
+    monthlyAttendence,
+    lectureDetails
 };
