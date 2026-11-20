@@ -90,7 +90,6 @@ app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 // Cookie parser (for httpOnly refresh token cookie)
 app.use(cookieParser());
 
-app.use(morgan("dev"));
 
 // HTTP request logging
 if (config.app.isDev) {
