@@ -238,7 +238,12 @@ async function sendInstallmentOtp(req, res) {
         }
 
         const results = await Promise.allSettled([
-            notifSvc.sendWhatsApp(mobile, otp),
+            notifSvc.sendWhatsApp(mobile, otp, {
+                name: student.stud_name,
+                rowId: studId,
+                sourceType: 'STUDENT',
+                sourceTable: 'tblstud_profile',
+            }),
             notifSvc.sendSMS(mobile, otp),
         ]);
 

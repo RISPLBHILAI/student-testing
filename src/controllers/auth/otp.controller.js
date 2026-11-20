@@ -62,7 +62,12 @@ async function sendOtp(req, res) {
 
         // ── Send OTP via WhatsApp (primary) + SMS (fallback) ─────────────────────
         const results = await Promise.allSettled([
-            notifSvc.sendWhatsApp(mobile_no, otp),
+            notifSvc.sendWhatsApp(mobile_no, otp, {
+                name: student.stud_name,
+                rowId: student.id,
+                sourceType: "STUDENT",
+                sourceTable: "tblstud_profile",
+            }),
             notifSvc.sendSMS(mobile_no, otp),
         ]);
 
