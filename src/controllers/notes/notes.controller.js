@@ -4,11 +4,67 @@ const { sendSuccess, sendError } = require("../../../../shared/utils/response");
 
 const NOTES_BASE_URL = 'https://myrungta.com/erp/adminpanel/notes/';
 
-// Hardcoded session-wide notes folders (same for every student).
-// ODD (current) semester notes, 2026-27 session
-const ODD_SESSION_DRIVE_LINK = 'https://drive.google.com/drive/folders/1hsQ4ipvvZ5d_VnkcaAAPUACeRoVCgSDo?usp=drive_link';
-// EVEN semester notes, 2025-26 session
-const EVEN_SESSION_DRIVE_LINK = 'https://drive.google.com/drive/folders/1qSjmO433EPOT4BXJurSiIOW76A8KPWzK?usp=drive_link';
+// Session-wide notes folders per college, keyed by clg_id.
+//   odd  → ODD (current) semester notes, 2026-27 session
+//   even → EVEN semester notes, 2025-26 session
+// An empty string means "no link yet" — the app gets '' for that college.
+// comingSoon: true → the college has no notes; the app shows a Coming Soon popup.
+const COLLEGE_DRIVE_LINKS = {
+    2: {
+        name: 'RSRRCET',
+        odd:  'https://drive.google.com/drive/folders/1hsQ4ipvvZ5d_VnkcaAAPUACeRoVCgSDo?usp=drive_link',
+        even: 'https://drive.google.com/drive/folders/1qSjmO433EPOT4BXJurSiIOW76A8KPWzK?usp=drive_link',
+    },
+    3: {
+        name: 'RIPS',
+        odd:  '',
+        even: '',
+    },
+    4: {
+        name: 'RIPSAR',
+        odd:  '',
+        even: '',
+    },
+    5: {
+        name: 'RCST',
+        odd:  'https://drive.google.com/drive/folders/1qZqlG_Gta5E1ahvBZo6QxqkAqgOo0Ibd?usp=drive_link',
+        even: 'https://drive.google.com/drive/folders/1vVmVN0PAb8hrEcGswAJgWhJ_c-m7dK67?usp=drive_link',
+    },
+    6: {
+        name: 'RISM',
+        odd:  'https://drive.google.com/drive/folders/1qZqlG_Gta5E1ahvBZo6QxqkAqgOo0Ibd?usp=drive_link',
+        even: 'https://drive.google.com/drive/folders/1vVmVN0PAb8hrEcGswAJgWhJ_c-m7dK67?usp=drive_link',
+    },
+    7: {
+        name: 'Dental',
+        odd:  '',
+        even: '',
+    },
+    8: {
+        name: 'ITI',
+        comingSoon: true,
+        odd:  '',
+        even: '',
+    },
+    10: {
+        name: 'RPS',
+        comingSoon: true,
+        odd:  '',
+        even: '',
+    },
+};
+
+function getSessionDriveLinks(clgId) {
+    const links = COLLEGE_DRIVE_LINKS[Number(clgId)] || {};
+    const odd  = links.odd  || '';
+    const even = links.even || '';
+    return {
+        odd,
+        even,
+        // Explicitly marked, or no link at all for this college
+        comingSoon: !!links.comingSoon || (!odd && !even),
+    };
+}
 
 async function getStudentAcademics(studentId) {
     const [rows] = await db.query(
@@ -129,6 +185,7 @@ async function notes(req, res) {
         }
 
         const first = noteRows[0];
+        const sessionLinks = getSessionDriveLinks(clg_id);
 
         logger.info(
             `[Notes] Drive link ${driveLink ? 'found' : 'not found'}, ${noteRows.length} notes for student: ${studentId}`
@@ -138,8 +195,9 @@ async function notes(req, res) {
             res,
             {
                 drive_link: driveLink,
-                odd_session_drive_link: ODD_SESSION_DRIVE_LINK,
-                even_session_drive_link: EVEN_SESSION_DRIVE_LINK,
+                odd_session_drive_link: sessionLinks.odd,
+                even_session_drive_link: sessionLinks.even,
+                notes_coming_soon: sessionLinks.comingSoon,
                 student: {
                     collegeName: first?.collegeName || '',
                     courseName: first?.courseName || '',
