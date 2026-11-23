@@ -6,6 +6,7 @@ const tokenSvc = require("../../../../shared/services/tokenService");
 const { generateAccessToken } = tokenSvc;
 
 const OTPService = require("../../../../shared/services/otpService");
+const StudentService = require("../../services/student.service");
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -64,6 +65,12 @@ async function selectStudent(req, res) {
         const decoded = jwt.verify(tempToken, process.env.JWT_SECRET, {
             issuer: "srgi-api",
         });
+
+        // An impersonation token carries the student's mobile; without this it
+        // could be traded for a real 7-day login + refresh token.
+        if (decoded.impersonation || decoded.isAdmin) {
+            return sendError(res, "Not allowed for this session", 403);
+        }
 
         if (!student_id) {
             return sendError(res, "Student ID required", 400);
@@ -136,47 +143,23 @@ async function selectStudent(req, res) {
 async function getStudentsForCurrentMobile(req, res) {
     try {
         const mobile = req.user?.mobile;
-        console.log(req.user);
+
+        if (req.user?.impersonation || req.user?.isAdmin) {
+            return sendError(res, "Profile switching is not available in admin mode", 403);
+        }
 
         if (!mobile) {
             return sendError(res, "Mobile number not found in session", 400);
         }
 
-        const [studentRecords] = await db.query(
-            `SELECT
-                base.id,
-                base.stud_name,
-                base.stud_roll_no,
-                base.admis_on_cor_id,
-                base.admis_on_sem_year_id,
-                base.stud_profile_pic,
-                base.stud_enroll_no,
-                cor.cor_name
-            FROM
-                tblstud_profile AS base
-            RIGHT JOIN tblcourse AS cor
-            ON
-                cor.id = base.admis_on_cor_id
-            WHERE
-                stud_mobile = ? AND base.current_status IN('regular', 'x_regular');`,
-            [mobile]
-        );
+        const studentRecords = await findStudentsByMobile(mobile);
 
         if (!studentRecords.length) {
             return sendError(res, "No student profiles found", 404);
         }
 
-        const students = studentRecords.map(s => ({
-            id: s.id,
-            name: s.stud_name,
-            rollNumber: s.stud_roll_no,
-            course: s.cor_name || s.admis_on_cor_id || "B.Tech",
-            year: s.year || s.admis_on_sem_year_id || "3rd Year",
-            profile: s.stud_profile_pic,
-            enrollNumber: s.stud_enroll_no,
-            mobile: mobile,
-            registered: true,
-        }));
+        // Real current course / branch / semester (same as the OTP picker)
+        const students = await StudentService.toProfileList(studentRecords, mobile);
 
         // ✅ temp token also needs issuer — use generateAccessToken
         const tempToken = generateAccessToken(

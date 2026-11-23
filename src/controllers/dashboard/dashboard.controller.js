@@ -260,6 +260,48 @@ async function allSubjects(req, res) {
     }
 }
 
+// ─── Internal marks (class tests etc.) ───────────────────────────────────────
+// Rows from academic_progress_record for the student's current semester, as
+// stored (one row per subject), plus the name of the teacher who entered them.
+// Only the columns the app shows; dates as YYYY-MM-DD (no timezone shift).
+// Never throws — a failure here must not break the university results.
+const INTERNAL_EXAM_PREFIXES = ["ct_1", "ct_2", "ct_3", "ct_4", "ct_5", "pre_sem", "model"];
+const INTERNAL_EXAM_COLUMNS = INTERNAL_EXAM_PREFIXES.map((p) => `
+                apr.${p}_attendance,
+                apr.${p}_max_marks,
+                apr.${p}_obtained,
+                DATE_FORMAT(apr.${p}_date, '%Y-%m-%d') AS ${p}_date`).join(",");
+
+async function getInternalMarks(studentId) {
+    try {
+        const [rows] = await db.query(
+            `SELECT
+                apr.id,
+                apr.subject_id,
+                apr.subject_code,
+                apr.subject_name,
+                ${INTERNAL_EXAM_COLUMNS},
+                apr.max_marks,
+                apr.marks_obtained,
+                apr.ct_max_marks,
+                apr.ct_obtained,
+                em.emp_name AS teacher_name
+             FROM academic_progress_record apr
+             INNER JOIN stud_current_sem_year scsy
+                ON scsy.stud_id = apr.stud_id
+                AND scsy.sem_year_id = apr.sem_id
+             LEFT JOIN employee_master em ON em.emp_id = apr.created_by
+             WHERE apr.stud_id = ?
+             ORDER BY apr.subject_name`,
+            [studentId]
+        );
+        return rows;
+    } catch (err) {
+        logger.error(`[Results] getInternalMarks error stud_id=${studentId}: ${err.message}`);
+        return [];
+    }
+}
+
 async function studentResults(req, res) {
     try {
         const studentId = req.user.user_id;
@@ -268,17 +310,29 @@ async function studentResults(req, res) {
             return sendError(res, 'Student not registered. Results information not available.', 400);
         }
 
-        const [universityRollNoRows] = await db.query(
-            `SELECT university_roll_no
-             FROM tblstud_profile
-               WHERE id = ?`,
-            [studentId]
-        );
+        const [[universityRollNoRows], internalMarks] = await Promise.all([
+            db.query(
+                `SELECT university_roll_no
+                 FROM tblstud_profile
+                   WHERE id = ?`,
+                [studentId]
+            ),
+            getInternalMarks(studentId),
+        ]);
 
         const universityRollNo = universityRollNoRows[0]?.university_roll_no;
 
+        // No university roll no yet (e.g. 1st year) — there are no university
+        // results, but internal marks still apply.
         if (!universityRollNo) {
-            return sendError(res, 'University roll number is required to fetch results.', 400);
+            return sendSuccess(res, {
+                universityRollNo: null,
+                totalSubjects: 0,
+                totalPassed: 0,
+                totalFailed: 0,
+                subjects: [],
+                internal_marks: internalMarks,
+            }, "Student results retrieved successfully", 200);
         }
 
         logger.info(`[Results] Fetching results for university roll no: ${universityRollNo}`);
@@ -317,7 +371,8 @@ async function studentResults(req, res) {
             totalSubjects: rows.length,
             totalPassed,
             totalFailed,
-            subjects: rows
+            subjects: rows,
+            internal_marks: internalMarks,
         }, "Student results retrieved successfully", 200);
 
     } catch (error) {

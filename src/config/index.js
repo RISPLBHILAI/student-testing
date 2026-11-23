@@ -57,6 +57,11 @@ const config = {
     // students. Must also be in BYPASS_MOBILES (.env) — the admin logs in with
     // the bypass OTP; no OTP is sent to this number.
     mobile: "8319332080",
+    // Admin session token (no refresh token is issued for the admin).
+    tokenExpiresIn: process.env.ADMIN_TOKEN_EXPIRES_IN || "12h",
+    // Token the admin uses while acting as a student. The app silently
+    // re-issues it via /admin/impersonate-student while the admin token lives.
+    impersonationExpiresIn: process.env.IMPERSONATION_TOKEN_EXPIRES_IN || "2h",
   },
 
   log: {

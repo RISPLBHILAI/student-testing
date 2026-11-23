@@ -25,6 +25,11 @@ async function saveFcmToken(req, res) {
 
     const stud_id = req.user.user_id;
 
+    // Admin's device must never replace the real student's push token
+    if (req.user.impersonation) {
+        return sendSuccess(res, null, "Skipped during impersonation");
+    }
+
     if (!token) {
         return sendError(res, "FCM token is required", 400);
     }
@@ -136,6 +141,10 @@ async function saveFcmToken(req, res) {
 // ─── DELETE /auth/fcm ─────────────────────────────────────────────────────────
 async function deleteFcmToken(req, res) {
     const stud_id = req.user.user_id;
+
+    if (req.user.impersonation) {
+        return sendSuccess(res, null, "Skipped during impersonation");
+    }
 
     try {
         // Only the student's own row — fcm_id_record is shared with employees.

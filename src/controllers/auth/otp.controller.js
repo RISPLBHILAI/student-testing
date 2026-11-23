@@ -126,13 +126,16 @@ async function verifyOtp(req, res) {
 
         // ── Admin flow — skip student selection, go straight to impersonation ────
         if (isAdmin) {
-            const adminToken = tokenSvc.generateAccessToken({
-                mobile: mobile_no,
-                verified: true,
-                isAdmin: true,
-                tempAccess: true,
-                app: "student",
-            });
+            const adminToken = tokenSvc.generateAccessToken(
+                {
+                    mobile: mobile_no,
+                    verified: true,
+                    isAdmin: true,
+                    tempAccess: true,
+                    app: "student",
+                },
+                { expiresIn: config.admin.tokenExpiresIn }
+            );
 
             logger.info(`[OTP:student] Admin login → mobile=${mobile_no}`);
 
@@ -176,21 +179,8 @@ async function verifyOtp(req, res) {
         }
 
         // ── Multiple / single student flow ───────────────────────────────────────
-        const students = studentRecords.map(dbStudent => ({
-            id: dbStudent.id,
-            name: dbStudent.stud_name,
-            profile: dbStudent.stud_profile_pic,
-            rollNumber: dbStudent.stud_roll_no,
-            course: dbStudent.course || dbStudent.admis_on_cor_id || 'B.Tech',
-            year: dbStudent.year || dbStudent.admis_on_sem_year_id || '3rd Year',
-            enrollNumber: dbStudent.stud_enroll_no,
-            esslid: dbStudent.essl_id,
-            mobile: mobile_no,
-            registered: true,
-        }));
-
         // ── If only one student, proceed with full login ──────────────────────────
-        if (students.length === 1) {
+        if (studentRecords.length === 1) {
             const student = studentRecords[0];
 
             // ── Log login ────────────────────────────────────────────────────────────
@@ -248,6 +238,8 @@ async function verifyOtp(req, res) {
         }
 
         // ── Multiple students — issue temp token for selection ───────────────────
+        const students = await StudentService.toProfileList(studentRecords, mobile_no);
+
         const tempToken = tokenSvc.generateAccessToken({
             mobile: mobile_no,
             verified: true,

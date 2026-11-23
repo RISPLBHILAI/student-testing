@@ -3,8 +3,10 @@
  * ───────────────────────────────────
  * Student-app admin endpoints (admin impersonation).
  *
- * GET  /admin/search-students       → search students to act as
- * POST /admin/impersonate-student   → issue a token for the chosen student
+ * GET  /admin/session               → is the admin token still valid
+ * GET  /admin/search-students       → search students to act as (?q=&field=)
+ * POST /admin/impersonate-student   → issue (or renew) a token for the chosen student
+ * POST /admin/end-impersonation     → audit log when the admin exits
  */
 
 const router       = require("express").Router();
@@ -25,7 +27,9 @@ function requireStudentAdmin(req, res, next) {
 }
 
 // Endpoints that control student switching
+router.get('/session', auth(), requireStudentAdmin, adminController.adminSession);
 router.get('/search-students', auth(), requireStudentAdmin, adminController.searchStudents);
 router.post('/impersonate-student', auth(), requireStudentAdmin, adminController.impersonateStudent);
+router.post('/end-impersonation', auth(), requireStudentAdmin, adminController.endImpersonation);
 
 module.exports = router;
