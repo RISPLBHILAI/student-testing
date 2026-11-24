@@ -268,7 +268,7 @@ async function startMcqTest(req, res) {
             `SELECT qb_id, question, que_img, marks, mcq_answer_type,
                     option1, option2, option3, option4,
                     img_option1, img_option2, img_option3, img_option4
-             FROM question_bank
+             FROM question_bank_copy
              WHERE subject_id = ? AND que_type = 'MCQ'
              ORDER BY RAND(?)`,
             [test.subject_id, Number(studentId) * 100000 + Number(testId)]
