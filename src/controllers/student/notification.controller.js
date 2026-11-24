@@ -27,7 +27,8 @@ async function notification(req, res) {
              FROM notification_portal.notifications
              WHERE platform = 'STUD'
                AND user_type = 'student'
-               AND (user_id = ? OR user_id = 0)`,
+               AND (user_id = ? OR user_id = 0)
+               AND sent_at >= NOW() - INTERVAL 3 DAY`,
             [studentId]
         );
 
@@ -37,6 +38,7 @@ async function notification(req, res) {
              WHERE platform = 'STUD'
                AND user_type = 'student'
                AND (user_id = ? OR user_id = 0)
+               AND sent_at >= NOW() - INTERVAL 3 DAY
                AND read_status = 0`,
             [studentId]
         );
@@ -49,6 +51,7 @@ async function notification(req, res) {
              WHERE platform = 'STUD'
                AND user_type = 'student'
                AND (user_id = ? OR user_id = 0)
+               AND sent_at >= NOW() - INTERVAL 3 DAY
                ${cursorClause}
              ORDER BY read_status ASC, id DESC
              LIMIT ?`,
@@ -123,6 +126,7 @@ async function unreadCount(req, res) {
              WHERE platform = 'STUD'
                AND user_type = 'student'
                AND (user_id = ? OR user_id = 0)
+               AND sent_at >= NOW() - INTERVAL 3 DAY
                AND read_status = 0`,
             [studentId]
         );
