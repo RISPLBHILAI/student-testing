@@ -165,7 +165,7 @@ async function getQuestionsSubjectWise(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MCQ TESTS
 // Tests    : tbl_test_master (created from the RPS Online Quiz Portal)
-// Questions: question_bank (que_type = 'MCQ') for the test's subject
+// Questions: question_bank_copy (que_type = 'MCQ') for the test's subject
 // Answers  : student_assesment_test_answer (one row per question)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -347,14 +347,18 @@ async function submitMcqTest(req, res) {
             return sendError(res, 'You have already submitted this test', 409);
         }
 
-        // Same order the student saw
+        // Same table and same order the student saw in startMcqTest
         const [questions] = await db.query(
             `SELECT qb_id, question, marks, mcq_answer, option1, option2, option3, option4
-             FROM question_bank
+             FROM question_bank_copy
              WHERE subject_id = ? AND que_type = 'MCQ'
              ORDER BY RAND(?)`,
             [test.subject_id, Number(studentId) * 100000 + Number(testId)]
         );
+
+        if (questions.length === 0) {
+            return sendError(res, 'No questions found for this test', 404);
+        }
 
         let score = 0;
         let totalMarks = 0;
