@@ -30,7 +30,7 @@ jobs:
             APP_NAME="student"
             BRANCH="main"
             PORT="3003"
-            HEALTH_PATH="/api/health"
+            HEALTH_PATH="/api/student/health"
 
             cd "$APP_DIR"
 
