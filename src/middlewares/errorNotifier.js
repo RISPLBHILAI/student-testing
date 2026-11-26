@@ -1,8 +1,8 @@
 /**
  * student/src/middlewares/errorNotifier.js
  * ─────────────────────────────────────────
- * Reports failed requests (status >= 400, except 401 and 404) to the Error
- * Notification service, which stores them and pushes an FCM alert.
+ * Captures failed requests (status >= 400, except 401 and 404) and logs them
+ * locally via the shared logger. No external API calls are made.
  * Only active when NODE_ENV=production.
  *
  * Usage in server.js:
@@ -12,31 +12,27 @@
  *   app.use(errorHandler);
  */
 
-const axios  = require("axios");
 const logger = require("../../../shared/utils/logger");
 
-const ERROR_LOG_URL = "https://myrungta.com/error_notification/log_error.php";
-const IS_PROD       = process.env.NODE_ENV === "production";
-const SOURCE        = "STUDENT APP";
+const IS_PROD = process.env.NODE_ENV === "production";
+const SOURCE  = "STUDENT APP";
 
 /**
- * Send one error to the Error Notification service. Never throws.
+ * Log one error locally. Never throws.
  */
 async function logError(error, options = {}) {
   if (!IS_PROD) return;
 
   try {
-    await axios.post(
-      ERROR_LOG_URL,
-      {
-        source:      options.source     ?? SOURCE,
-        status_code: options.statusCode ?? error.status ?? error.statusCode ?? 500,
-        message:     error.message      ?? String(error),
-        stack_trace: error.stack        ?? "",
-        endpoint:    options.endpoint   ?? "",
-        environment: options.emp_id     ?? "production",
-      },
-      { timeout: 5000 }
+    const source     = options.source     ?? SOURCE;
+    const statusCode = options.statusCode ?? error.status ?? error.statusCode ?? 500;
+    const message    = error.message      ?? String(error);
+    const endpoint   = options.endpoint   ?? "";
+    const user       = options.emp_id     ?? "";
+
+    logger.error(
+      `[ErrorNotifier] ${source} | ${statusCode} | ${endpoint}${user ? ` | ${user}` : ""} | ${message}` +
+      (error.stack ? `\n${error.stack}` : "")
     );
   } catch (e) {
     logger.warn(`[ErrorNotifier] Failed to log error: ${e.message}`);
