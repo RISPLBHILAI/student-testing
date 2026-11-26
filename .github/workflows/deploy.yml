@@ -26,10 +26,10 @@ jobs:
           script: |
             set -e
 
-            APP_DIR="/opt/app_backend/student-test"
-            APP_NAME="student-test"
+            APP_DIR="/app/student"
+            APP_NAME="student"
             BRANCH="main"
-            PORT="5002"
+            PORT="3003"
             HEALTH_PATH="/api/health"
 
             cd "$APP_DIR"
