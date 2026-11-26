@@ -1,1 +1,66 @@
 
+name: Backend Test CI/CD with Rollback
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-test
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Deploy with rollback protection
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            APP_DIR="/opt/app_backend/student-test"
+            APP_NAME="student-test"
+            BRANCH="main"
+            PORT="5002"
+            HEALTH_PATH="/api/health"
+
+            cd "$APP_DIR"
+
+            echo "Saving current commit..."
+            PREV_COMMIT=$(git rev-parse HEAD)
+            echo "$PREV_COMMIT" > .last_good_commit
+
+            echo "Fetching latest code..."
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            echo "Installing dependencies..."
+            npm install
+
+            echo "Reloading PM2..."
+            pm2 reload "$APP_NAME"
+
+            echo "Waiting for app..."
+            sleep 5
+
+            echo "Running health check..."
+            HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://127.0.0.1:${PORT}${HEALTH_PATH}" || true)
+
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "Health check failed (status: $HTTP_STATUS). Rolling back..."
+              git reset --hard "$PREV_COMMIT"
+              npm install
+              pm2 reload "$APP_NAME"
+              echo "Rolled back to previous version"
+              exit 1
+            fi
+
+            echo "Deployment successful"
