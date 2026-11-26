@@ -37,8 +37,8 @@ const COLLEGE_DRIVE_LINKS = {
     },
     7: {
         name: 'Dental',
-        odd:  '',
-        even: '',
+        odd:  'https://drive.google.com/drive/folders/1iN6Hd9Yxjnwr8rsgR8-NWUkPWdQ2Bqwz?usp=drive_link',
+        even: 'https://drive.google.com/drive/folders/1iN6Hd9Yxjnwr8rsgR8-NWUkPWdQ2Bqwz?usp=drive_link',
     },
     8: {
         name: 'ITI',
