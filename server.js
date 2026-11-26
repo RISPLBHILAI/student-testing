@@ -95,6 +95,7 @@ app.use(cookieParser());
 if (config.app.isDev) {
   app.use(morgan("dev"));
 } else {
+  app.use(morgan("dev"));
   app.use(
     morgan("combined", {
       stream: { write: (msg) => logger.info(msg.trim()) },
